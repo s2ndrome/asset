@@ -115,7 +115,7 @@ export function parseLines(text) {
     .filter(Boolean)
     .map((line) => {
       const r = parseCaveduckUrl(line);
-      return r ? r : { input: line, error: 'caveduck 이미지 주소로 인식할 수 없음' };
+      return r ? r : { input: line, error: '지원하는 이미지 주소로 인식할 수 없음' };
     });
 }
 

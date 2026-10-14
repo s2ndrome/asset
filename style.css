@@ -197,3 +197,4 @@ details.raw > .body { padding: 0 10px 10px; }
   .top { flex-wrap: wrap; gap: 8px; }
   .top-r { width: 100%; justify-content: space-between; }
 }
+.cands-box { margin-top: 10px; }

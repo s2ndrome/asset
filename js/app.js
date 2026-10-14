@@ -218,7 +218,7 @@ function summaryText(s) {
 
 function exportJson(meta, source, extra = {}) {
   return {
-    tool: 'caveduck-meta',
+    tool: 'zzun-meta-thief',
     exportedAt: new Date().toISOString(),
     source,
     ...extra,
@@ -295,7 +295,9 @@ function urlCard(parsed, descriptions = []) {
   if (parsed.kind) card.append(h('div', { class: 'tags' }, h('span', { class: 'tag on' }, parsed.kind), parsed.v ? h('span', { class: 'tag' }, `v=${parsed.v}`) : null));
   for (const d of descriptions) card.append(h('div', { class: 'note info' }, h('b', {}, `${d.key}: `), d.value));
 
-  card.append(h('h3', {}, '후보 주소'));
+  const candState = h('span', { class: 'grow' }, '가져오는 중…');
+  const candBox = h('details', { class: 'raw cands-box' },
+    h('summary', {}, h('b', {}, `후보 주소 ${parsed.candidates.length}개`), candState));
   const tbl = h('table', { class: 'cands' });
   const rows = parsed.candidates.map((c, i) => {
     const st = h('span', { class: 'st wait' }, '대기');
@@ -307,7 +309,8 @@ function urlCard(parsed, descriptions = []) {
     tbl.append(tr);
     return { c, st, img };
   });
-  card.append(tbl);
+  candBox.append(h('div', { class: 'body' }, tbl));
+  card.append(candBox);
   const body = h('div', {});
   card.append(body);
   addCard(card);
@@ -336,25 +339,27 @@ function urlCard(parsed, descriptions = []) {
       if (log.some((l) => l.cors)) anyCors = true;
       if (!got) { await probeP; continue; }
       okCount++;
+      candState.textContent = `${rows.indexOf(r) + 1}번 ${r.c.label}에서 받음`;
       const meta = await analyzeBytes(got.buf);
       rep.result = { format: meta.format, size: meta.size, hasGenerationInfo: meta.hasGenerationInfo };
       const sec = h('section', {}, h('h3', {}, `${r.c.label} 분석 결과`));
       body.append(sec);
       renderMeta(sec, meta, {
         bytes: got.buf, sourceLabel: r.c.url, kind: r.c.kind,
-        exportBase: `caveduck_${parsed.uuid || 'image'}_${r.c.kind || 'x'}`,
+        exportBase: `meta_${parsed.uuid || 'image'}_${r.c.kind || 'x'}`,
       });
       if (meta.format !== 'HTML' && !settings.tryAll) done = true;
       await probeP;
     }
     if (!okCount) {
+      candState.textContent = '받지 못함';
+      candBox.open = true;
       const box = h('div', { class: 'note warn' },
         h('b', {}, anyCors ? '브라우저 보안(CORS) 때문에 파일 내용을 읽지 못했습니다.' : '어느 후보에서도 파일을 받지 못했습니다.'));
       if (anyCors) {
         box.append(
-          h('p', {}, '① 아래 원본 링크를 새 탭에서 열고 “다른 이름으로 저장”한 뒤, 위의 파일 상자에 끌어다 놓으세요.'),
-          h('p', {}, '② 또는 “가져오기 설정”에 CORS 프록시(README 의 Cloudflare Worker) 주소를 넣고 다시 시도하세요.'),
-          h('p', {}, '③ 로컬에서는 CLI: ', h('code', {}, `python cli/caveduck_meta.py "${parsed.input}"`)));
+          h('p', {}, '① 후보 주소 링크를 새 탭에서 열고 “다른 이름으로 저장”한 뒤, 위의 파일 상자에 끌어다 놓으세요.'),
+          h('p', {}, '② 또는 “가져오기 설정”에 CORS 프록시(README 의 Cloudflare Worker) 주소를 넣고 다시 시도하세요.'));
       }
       body.append(box);
       if (firstLoadable) {
@@ -366,7 +371,7 @@ function urlCard(parsed, descriptions = []) {
       }
     }
     body.append(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn', type: 'button', onclick: () => download(`caveduck_${parsed.uuid || 'image'}_candidates.json`, JSON.stringify(report, null, 2)) }, '후보 상태 JSON 다운로드')));
+      h('button', { class: 'btn', type: 'button', onclick: () => download(`meta_${parsed.uuid || 'image'}_candidates.json`, JSON.stringify(report, null, 2)) }, '후보 상태 JSON 다운로드')));
   });
 }
 
@@ -381,7 +386,7 @@ async function fileCard(file) {
   const buf = await file.arrayBuffer();
   const meta = await analyzeBytes(buf);
   const base = (file.name || 'image').replace(/\.[^.]+$/, '');
-  // 파일 이름에 caveduck uuid 가 있으면 알려 준다
+  // 파일 이름에 이미지 uuid 가 있으면 종류를 알려 준다
   const p = parseCaveduckUrl(file.name || '');
   renderMeta(card, meta, { bytes: buf, sourceLabel: `파일: ${file.name || '(붙여넣기)'}`, kind: p?.kind, exportBase: `${base}_meta` });
 }
@@ -411,7 +416,7 @@ function htmlCard(found) {
   card.append(h('div', { class: 'btn-row' },
     h('button', { type: 'button', class: 'primary', onclick: () => [...found].reverse().forEach((f) => urlCard(f.parsed, f.descriptions)) }, '모두 분석'),
     copyBtn(() => found.map((f) => f.parsed.candidates[0].url).join('\n'), '원본 후보 주소 모두 복사'),
-    h('button', { class: 'btn', type: 'button', onclick: () => download('caveduck_images.json', JSON.stringify(found.map(({ uuid, urls, descriptions, parsed }) => ({ uuid, urls, descriptions, candidates: parsed.candidates.map((c) => c.url) })), null, 2)) }, '목록 JSON 다운로드')));
+    h('button', { class: 'btn', type: 'button', onclick: () => download('meta_images.json', JSON.stringify(found.map(({ uuid, urls, descriptions, parsed }) => ({ uuid, urls, descriptions, candidates: parsed.candidates.map((c) => c.url) })), null, 2)) }, '목록 JSON 다운로드')));
   addCard(card);
 }
 
@@ -422,7 +427,7 @@ function run() {
   if (!text.trim()) { toast('주소를 입력하세요'); return; }
   if (looksLikeHtml(text)) {
     const found = extractFromHtml(text);
-    if (!found.length) { toast('caveduck 이미지 주소를 찾지 못했습니다'); return; }
+    if (!found.length) { toast('이미지 주소를 찾지 못했습니다'); return; }
     htmlCard(found);
     return;
   }
@@ -432,7 +437,7 @@ function run() {
   const seen = new Set();
   const good = items.filter((x) => !x.error && (x.uuid ? (seen.has(x.uuid) ? false : (seen.add(x.uuid), true)) : true));
   [...good].reverse().forEach((p) => urlCard(p));
-  if (bad.length) toast(`${bad.length}줄은 caveduck 이미지 주소가 아니라서 건너뛰었습니다`);
+  if (bad.length) toast(`${bad.length}줄은 지원하는 이미지 주소가 아니라서 건너뛰었습니다`);
 }
 
 let HINT0 = '';

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ZZUN META thief ♡</title>
-<meta name="description" content="caveduck.io 이미지 링크에서 원본 주소를 찾고 AI 생성 메타데이터(프롬프트 등)를 보여주는 도구">
+<meta name="description" content="이미지 링크에서 원본 주소를 찾고 AI 생성 메타데이터(프롬프트 등)를 보여주는 도구">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23c0d1dc'/%3E%3Cpath d='M7 23l6-8 4 5 3-3 5 6z' fill='%2334495a'/%3E%3Ccircle cx='21' cy='11' r='2.5' fill='%2334495a'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
@@ -29,7 +29,7 @@
     <div id="results" aria-live="polite">
       <div class="empty" id="empty">
         <b>아직 분석한 이미지가 없어요</b>
-        <p>오른쪽에 caveduck 이미지 주소를 붙여 넣거나, 이미지 파일을 끌어다 놓으세요.</p>
+        <p>오른쪽에 이미지 주소를 붙여 넣거나, 이미지 파일을 끌어다 놓으세요.</p>
       </div>
     </div>
   </section>
@@ -37,9 +37,9 @@
   <aside class="panel">
     <details class="box" open>
       <summary>주소 · 페이지 소스 <small>여러 줄 · HTML 전체도 돼요</small></summary>
-      <label class="f">caveduck 이미지 주소
+      <label class="f">이미지 주소
         <textarea id="input" rows="5" spellcheck="false" autocomplete="off"
-          placeholder="https://cdn.caveduck.io/cdn-cgi/image/…/charim-standard/<uuid>?v=…"></textarea>
+          placeholder="이미지 주소를 붙여 넣으세요"></textarea>
       </label>
       <p class="muted" id="modeHint">주소를 한 줄에 하나씩 넣거나, 캐릭터 페이지의 HTML 소스를 통째로 붙여 넣으세요.</p>
       <div class="btn-row">
@@ -60,9 +60,9 @@
     <details class="box" id="settings">
       <summary>가져오기 설정 <small>CORS 프록시</small></summary>
       <label class="f">프록시 주소
-        <input id="proxy" type="text" inputmode="url" placeholder="https://caveduck-proxy.<계정>.workers.dev" spellcheck="false" autocomplete="off">
+        <input id="proxy" type="text" inputmode="url" placeholder="https://내-프록시.workers.dev" spellcheck="false" autocomplete="off">
       </label>
-      <p class="muted">브라우저가 cdn.caveduck.io 파일을 직접 읽지 못할 때 써요. <code>{url}</code>이 있으면 그 자리에, 없으면 <code>?url=</code> 뒤에 원래 주소를 붙여요. 이 브라우저에만 저장돼요.</p>
+      <p class="muted">브라우저가 이미지 파일을 직접 읽지 못할 때 써요. <code>{url}</code>이 있으면 그 자리에, 없으면 <code>?url=</code> 뒤에 원래 주소를 붙여요. 이 브라우저에만 저장돼요.</p>
       <div class="checks col">
         <label><input id="proxyOnly" type="checkbox"> 직접 요청은 건너뛰고 프록시만 사용</label>
         <label><input id="tryAll" type="checkbox"> 첫 성공에서 멈추지 말고 모든 후보 검사</label>
