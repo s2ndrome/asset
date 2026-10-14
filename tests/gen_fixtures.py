@@ -89,7 +89,7 @@ def embed_stealth(im, text, compressed=True, mode="alpha"):
     im = im.convert("RGBA")
     data = text.encode("utf-8")
     if compressed:
-        data = gzip.compress(data)
+        data = gzip.compress(data, mtime=0)
     sig = {("alpha", False): "stealth_pnginfo", ("alpha", True): "stealth_pngcomp",
            ("rgb", False): "stealth_rgbinfo", ("rgb", True): "stealth_rgbcomp"}[(mode, compressed)]
     bits = "".join(f"{b:08b}" for b in sig.encode()) + f"{len(data) * 8:032b}" + "".join(f"{b:08b}" for b in data)
