@@ -20,6 +20,8 @@
 
 ## 사용법 (웹)
 
+화면 구성: 왼쪽 **Result** 에 결과 카드가 쌓이고, 오른쪽 패널에서 입력합니다(모바일에서는 패널이 위). 상단에서 자동/라이트/다크 테마를 고를 수 있습니다.
+
 1. 입력 칸에 caveduck 이미지 주소를 붙여넣고 **원본 찾기 · 분석** (Ctrl/⌘+Enter).
    - 여러 줄을 한 번에 넣으면 줄마다 따로 처리합니다. 같은 UUID는 한 번만 처리합니다.
    - 주소 앞뒤에 딸려 온 `|`, `'`, `"`, 괄호, 공백, 마크다운 `![](...)` 등은 자동으로 정리합니다.
@@ -36,7 +38,7 @@
    - 정보가 없으면 “**이 파일에는 생성 정보가 없음** (업로드·변환 과정에서 제거됐을 가능성)”이라고 표시
 5. `index.html?url=<주소>` 로 열면 바로 분석합니다.
 
-설정(⚙ 가져오기 설정)
+설정(오른쪽 패널 **가져오기 설정**, 상단 **프록시 설정** 버튼)
 - **프록시 주소**: CORS 우회용. 브라우저 `localStorage` 에 저장됩니다.
 - 직접 요청 건너뛰고 프록시만 사용 / 모든 후보 검사(첫 성공에서 멈추지 않음) / 픽셀에 숨긴 정보(stealth pnginfo) 검사
 
@@ -156,9 +158,13 @@ pbpaste | python cli/caveduck_meta.py -                     # 표준입력(주�
 
 ## 배포 (GitHub Pages)
 
-1. 이 저장소를 GitHub에 푸시
-2. 저장소 **Settings → Pages → Build and deployment → Source: GitHub Actions**
-3. `main`/`master` 에 푸시하면 `.github/workflows/pages.yml` 이 테스트를 돌린 뒤 `index.html`, `style.css`, `js/` 만 배포합니다.
+빌드 과정 없이 파일 그대로 배포됩니다.
+
+1. 저장소 **Settings → Pages**
+2. **Source**: `Deploy from a branch`, **Branch**: `main` / `/ (root)` → Save
+3. 잠시 후 `https://s2ndrome.github.io/asset/` 에서 열립니다.
+
+`.github/workflows/tests.yml` 은 배포와 별개로 푸시마다 테스트만 돌립니다.
 
 로컬에서 보기(ES 모듈이라 `file://` 로는 안 되고 서버가 필요):
 ```sh

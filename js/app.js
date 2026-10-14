@@ -23,6 +23,7 @@ const store = {
 };
 
 function toast(msg) {
+  document.querySelector('.toast')?.remove();
   const t = h('div', { class: 'toast', role: 'status' }, msg);
   document.body.append(t);
   setTimeout(() => t.remove(), 1600);
@@ -37,7 +38,7 @@ async function copyText(text) {
   }
   toast('복사했습니다');
 }
-const copyBtn = (getText, label = '복사') => h('button', { class: 'sm', type: 'button', onclick: () => copyText(typeof getText === 'function' ? getText() : getText) }, label);
+const copyBtn = (getText, label = '복사') => h('button', { class: 'btn sm', type: 'button', onclick: () => copyText(typeof getText === 'function' ? getText() : getText) }, label);
 
 function download(name, data, type = 'application/json') {
   const blob = data instanceof Blob ? data : new Blob([data], { type });
@@ -60,7 +61,6 @@ function initSettings() {
   $('#proxyOnly').checked = store.get('cdm.proxyOnly') === '1';
   $('#tryAll').checked = store.get('cdm.tryAll') === '1';
   $('#stealth').checked = store.get('cdm.stealth', '1') === '1';
-  if ($('#proxy').value) $('#settings').open = false;
   $('#proxy').addEventListener('change', () => store.set('cdm.proxy', settings.proxy));
   for (const id of ['proxyOnly', 'tryAll', 'stealth']) {
     $(`#${id}`).addEventListener('change', (e) => store.set(`cdm.${id}`, e.target.checked ? '1' : '0'));
@@ -134,7 +134,7 @@ function field(label, text) {
 }
 
 function renderSummary(s) {
-  const box = h('div', { class: 'sum' }, h('h4', {}, `🧾 ${s.title}`));
+  const box = h('div', { class: 'sum' }, h('h4', {}, s.title));
   box.append(field('프롬프트', s.prompt) || '', field('네거티브 프롬프트', s.negative) || '');
   s.characters?.forEach((c, i) => {
     box.append(field(`캐릭터 ${i + 1} 프롬프트${c.centers ? ` · 위치 ${c.centers}` : ''}`, c.prompt) || '');
@@ -158,10 +158,10 @@ function renderEntry(e) {
   const d = h('details', { class: 'raw', open: !big || null },
     h('summary', {},
       h('span', { class: 'tag' }, e.source),
-      h('strong', {}, e.key),
-      e.translatedKey ? h('span', { class: 'muted small' }, `(${e.translatedKey}${e.lang ? `, ${e.lang}` : ''})`) : null,
-      h('span', { class: 'muted small grow' }, `${isJson ? 'JSON · ' : ''}${text.length.toLocaleString()}자`),
-      h('button', { class: 'sm', type: 'button', onclick: (ev) => { ev.preventDefault(); copyText(e.value); } }, '복사')),
+      h('b', {}, e.key),
+      e.translatedKey ? h('span', { class: 'tag' }, `(${e.translatedKey}${e.lang ? `, ${e.lang}` : ''})`) : null,
+      h('span', { class: 'grow' }, `${isJson ? 'JSON · ' : ''}${text.length.toLocaleString()}자`),
+      h('button', { class: 'btn sm', type: 'button', onclick: (ev) => { ev.preventDefault(); copyText(e.value); } }, '복사')),
     h('div', { class: 'body' }, h('pre', { class: 'txt' }, text)));
   return d;
 }
@@ -182,15 +182,15 @@ function renderMeta(container, meta, { bytes, sourceLabel, kind, exportBase }) {
   const main = h('div', {}, facts);
 
   if (!meta.hasGenerationInfo) {
-    main.append(h('div', { class: 'box warn' },
-      h('strong', {}, '이 파일에는 생성 정보가 없음'),
+    main.append(h('div', { class: 'note warn' },
+      h('b', {}, '이 파일에는 생성 정보가 없음'),
       h('p', {}, '업로드·변환 과정에서 제거됐을 가능성이 큽니다.' +
         (kind && kind !== 'charim' ? ` (${kind} 는 CDN 이 다시 인코딩한 파일이라 메타데이터가 거의 남지 않습니다.)` : '') +
         (meta.entries.length ? ' 아래는 남아 있는 일반 메타데이터입니다.' : ''))));
   } else {
-    main.append(h('div', { class: 'box ok' }, h('strong', {}, '생성 정보를 찾았습니다')));
+    main.append(h('div', { class: 'note ok' }, h('b', {}, '생성 정보를 찾았습니다')));
   }
-  for (const n of meta.notes) main.append(h('div', { class: 'box err' }, n));
+  for (const n of meta.notes) main.append(h('div', { class: 'note err' }, n));
 
   const out = h('div', {}, h('div', { class: 'result' }, side, main));
   for (const s of meta.summaries) out.append(renderSummary(s));
@@ -199,9 +199,9 @@ function renderMeta(container, meta, { bytes, sourceLabel, kind, exportBase }) {
     for (const e of meta.entries) out.append(renderEntry(e));
   }
   const ext = { PNG: 'png', JPEG: 'jpg', WebP: 'webp', GIF: 'gif', AVIF: 'avif' }[meta.format] || 'bin';
-  out.append(h('div', { class: 'row' },
-    h('button', { type: 'button', onclick: () => download(`${exportBase}.json`, JSON.stringify(exportJson(meta, sourceLabel), null, 2)) }, '결과 JSON 다운로드'),
-    h('button', { type: 'button', onclick: () => download(`${exportBase}.${ext}`, new Blob([bytes], { type: meta.mime })) }, '파일 저장'),
+  out.append(h('div', { class: 'btn-row' },
+    h('button', { class: 'btn', type: 'button', onclick: () => download(`${exportBase}.json`, JSON.stringify(exportJson(meta, sourceLabel), null, 2)) }, '결과 JSON 다운로드'),
+    h('button', { class: 'btn', type: 'button', onclick: () => download(`${exportBase}.${ext}`, new Blob([bytes], { type: meta.mime })) }, '파일 저장'),
     meta.summaries.length ? copyBtn(() => meta.summaries.map(summaryText).join('\n\n'), '요약 전체 복사') : null));
   container.append(out);
   return out;
@@ -254,6 +254,15 @@ async function readStealth(blob) {
   return decodeStealth(data, width, height);
 }
 
+// ───────────── 결과 영역 ─────────────
+function syncEmpty() {
+  const has = !!$('#results .card');
+  $('#empty').hidden = has;
+  $('#clear-results').hidden = !has;
+}
+function addCard(card) { $('#results').prepend(card); syncEmpty(); }
+function removeCard(card) { card.remove(); syncEmpty(); }
+
 // ───────────── 카드: URL ─────────────
 
 const queue = { running: 0, items: [] };
@@ -282,9 +291,9 @@ function urlCard(parsed, descriptions = []) {
     h('div', {},
       h('h2', {}, parsed.uuid || '이미지'),
       h('div', { class: 'src' }, parsed.input)),
-    h('button', { class: 'sm ghost', type: 'button', onclick: () => card.remove(), 'aria-label': '닫기' }, '✕')));
-  if (parsed.kind) card.append(h('div', {}, h('span', { class: 'tag' }, `입력 종류: ${parsed.kind}`), parsed.v ? h('span', { class: 'tag' }, `v=${parsed.v}`) : null));
-  for (const d of descriptions) card.append(h('div', { class: 'box ok' }, h('strong', {}, `${d.key}: `), d.value));
+    h('button', { class: 'x-btn', type: 'button', onclick: () => removeCard(card), 'aria-label': '닫기' }, '✕')));
+  if (parsed.kind) card.append(h('div', { class: 'tags' }, h('span', { class: 'tag on' }, parsed.kind), parsed.v ? h('span', { class: 'tag' }, `v=${parsed.v}`) : null));
+  for (const d of descriptions) card.append(h('div', { class: 'note info' }, h('b', {}, `${d.key}: `), d.value));
 
   card.append(h('h3', {}, '후보 주소'));
   const tbl = h('table', { class: 'cands' });
@@ -301,7 +310,7 @@ function urlCard(parsed, descriptions = []) {
   card.append(tbl);
   const body = h('div', {});
   card.append(body);
-  results.prepend(card);
+  addCard(card);
 
   enqueue(async () => {
     const report = { input: parsed.input, uuid: parsed.uuid, candidates: [] };
@@ -339,8 +348,8 @@ function urlCard(parsed, descriptions = []) {
       await probeP;
     }
     if (!okCount) {
-      const box = h('div', { class: 'box warn' },
-        h('strong', {}, anyCors ? '브라우저 보안(CORS) 때문에 파일 내용을 읽지 못했습니다.' : '어느 후보에서도 파일을 받지 못했습니다.'));
+      const box = h('div', { class: 'note warn' },
+        h('b', {}, anyCors ? '브라우저 보안(CORS) 때문에 파일 내용을 읽지 못했습니다.' : '어느 후보에서도 파일을 받지 못했습니다.'));
       if (anyCors) {
         box.append(
           h('p', {}, '① 아래 원본 링크를 새 탭에서 열고 “다른 이름으로 저장”한 뒤, 위의 파일 상자에 끌어다 놓으세요.'),
@@ -351,13 +360,13 @@ function urlCard(parsed, descriptions = []) {
       if (firstLoadable) {
         body.append(h('div', { class: 'result' },
           h('div', { class: 'preview' }, h('img', { src: firstLoadable, alt: '원본 후보 미리보기', referrerpolicy: 'no-referrer' })),
-          h('div', {}, h('p', {}, '표시 가능한 가장 우선순위 높은 주소:'),
+          h('div', {}, h('p', { class: 'muted' }, '표시 가능한 가장 우선순위 높은 주소'),
             h('p', {}, h('a', { href: firstLoadable, target: '_blank', rel: 'noopener noreferrer' }, firstLoadable)),
-            h('p', { class: 'muted small' }, '미리보기는 <img> 로만 보이는 것이고, 메타데이터는 파일 바이트를 읽어야 확인할 수 있습니다.'))));
+            h('p', { class: 'muted' }, '미리보기는 <img> 로만 보이는 것이고, 메타데이터는 파일 바이트를 읽어야 확인할 수 있습니다.'))));
       }
     }
-    body.append(h('div', { class: 'row' },
-      h('button', { type: 'button', onclick: () => download(`caveduck_${parsed.uuid || 'image'}_candidates.json`, JSON.stringify(report, null, 2)) }, '후보 상태 JSON 다운로드')));
+    body.append(h('div', { class: 'btn-row' },
+      h('button', { class: 'btn', type: 'button', onclick: () => download(`caveduck_${parsed.uuid || 'image'}_candidates.json`, JSON.stringify(report, null, 2)) }, '후보 상태 JSON 다운로드')));
   });
 }
 
@@ -367,8 +376,8 @@ async function fileCard(file) {
   const card = h('article', { class: 'card' });
   card.append(h('div', { class: 'card-head' },
     h('div', {}, h('h2', {}, file.name || '붙여넣은 이미지'), h('div', { class: 'src' }, `${file.type || '형식 미상'} · ${fmtSize(file.size)}`)),
-    h('button', { class: 'sm ghost', type: 'button', onclick: () => card.remove(), 'aria-label': '닫기' }, '✕')));
-  $('#results').prepend(card);
+    h('button', { class: 'x-btn', type: 'button', onclick: () => removeCard(card), 'aria-label': '닫기' }, '✕')));
+  addCard(card);
   const buf = await file.arrayBuffer();
   const meta = await analyzeBytes(buf);
   const base = (file.name || 'image').replace(/\.[^.]+$/, '');
@@ -383,8 +392,8 @@ function htmlCard(found) {
   const card = h('article', { class: 'card' });
   card.append(h('div', { class: 'card-head' },
     h('div', {}, h('h2', {}, `페이지 소스에서 이미지 ${found.length}개를 찾았습니다`),
-      h('div', { class: 'muted small' }, 'UUID 기준으로 중복을 합쳤습니다. 각 항목에서 원본 찾기를 누르세요.')),
-    h('button', { class: 'sm ghost', type: 'button', onclick: () => card.remove(), 'aria-label': '닫기' }, '✕')));
+      h('p', { class: 'muted' }, 'UUID 기준으로 중복을 합쳤어요. 항목마다 원본 찾기를 누르세요.')),
+    h('button', { class: 'x-btn', type: 'button', onclick: () => removeCard(card), 'aria-label': '닫기' }, '✕')));
   const list = h('div', { class: 'list' });
   for (const f of found) {
     const thumb = `https://cdn.caveduck.io/charim-160x160/${f.uuid}`;
@@ -394,16 +403,16 @@ function htmlCard(found) {
         ...f.descriptions.map((d) => h('div', { class: 'desc' }, `${d.key === 'imageNameInternal' ? '' : d.key + ': '}${d.value}`)),
         h('div', { class: 'u' }, f.uuid),
         h('div', { class: 'muted' }, `${f.urls.length}개 주소 · ${[...new Set(f.urls.map((u) => parseCaveduckUrl(u)?.kind).filter(Boolean))].join(', ')}`),
-        h('div', { class: 'row' },
-          h('button', { class: 'sm', type: 'button', onclick: () => urlCard(f.parsed, f.descriptions) }, '원본 찾기'),
+        h('div', { class: 'btn-row' },
+          h('button', { class: 'btn sm', type: 'button', onclick: () => urlCard(f.parsed, f.descriptions) }, '원본 찾기'),
           copyBtn(() => f.urls.join('\n'), '주소 복사')))));
   }
   card.append(list);
-  card.append(h('div', { class: 'row' },
+  card.append(h('div', { class: 'btn-row' },
     h('button', { type: 'button', class: 'primary', onclick: () => [...found].reverse().forEach((f) => urlCard(f.parsed, f.descriptions)) }, '모두 분석'),
     copyBtn(() => found.map((f) => f.parsed.candidates[0].url).join('\n'), '원본 후보 주소 모두 복사'),
-    h('button', { type: 'button', onclick: () => download('caveduck_images.json', JSON.stringify(found.map(({ uuid, urls, descriptions, parsed }) => ({ uuid, urls, descriptions, candidates: parsed.candidates.map((c) => c.url) })), null, 2)) }, '목록 JSON 다운로드')));
-  $('#results').prepend(card);
+    h('button', { class: 'btn', type: 'button', onclick: () => download('caveduck_images.json', JSON.stringify(found.map(({ uuid, urls, descriptions, parsed }) => ({ uuid, urls, descriptions, candidates: parsed.candidates.map((c) => c.url) })), null, 2)) }, '목록 JSON 다운로드')));
+  addCard(card);
 }
 
 // ───────────── 입력 처리 ─────────────
@@ -426,9 +435,10 @@ function run() {
   if (bad.length) toast(`${bad.length}줄은 caveduck 이미지 주소가 아니라서 건너뛰었습니다`);
 }
 
+let HINT0 = '';
 function updateHint() {
   const t = $('#input').value;
-  if (!t.trim()) { $('#modeHint').textContent = ''; return; }
+  if (!t.trim()) { $('#modeHint').textContent = HINT0; return; }
   if (looksLikeHtml(t)) $('#modeHint').textContent = `HTML 소스 모드 · 이미지 ${extractFromHtml(t).length}개 감지`;
   else {
     const items = parseLines(t);
@@ -442,22 +452,29 @@ function handleFiles(files) {
 }
 
 function initTheme() {
-  const saved = store.get('cdm.theme');
-  if (saved) document.documentElement.dataset.theme = saved;
-  $('#themeBtn').addEventListener('click', () => {
-    const cur = document.documentElement.dataset.theme ||
-      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    const next = cur === 'dark' ? 'light' : 'dark';
-    document.documentElement.dataset.theme = next;
-    store.set('cdm.theme', next);
-  });
+  const apply = (mode) => {
+    if (mode === 'light' || mode === 'dark') document.documentElement.dataset.theme = mode;
+    else delete document.documentElement.dataset.theme;
+    for (const b of document.querySelectorAll('[data-theme-set]')) b.classList.toggle('on', b.dataset.themeSet === (mode || 'auto'));
+  };
+  apply(store.get('cdm.theme', 'auto'));
+  for (const b of document.querySelectorAll('[data-theme-set]')) {
+    b.addEventListener('click', () => { apply(b.dataset.themeSet); store.set('cdm.theme', b.dataset.themeSet); });
+  }
 }
 
 function init() {
+  HINT0 = $('#modeHint').textContent;
   initTheme();
   initSettings();
   $('#runBtn').addEventListener('click', run);
-  $('#clearBtn').addEventListener('click', () => { $('#input').value = ''; $('#results').replaceChildren(); updateHint(); });
+  $('#clearBtn').addEventListener('click', () => { $('#input').value = ''; updateHint(); $('#input').focus(); });
+  $('#clear-results').addEventListener('click', () => { for (const c of document.querySelectorAll('#results .card')) c.remove(); syncEmpty(); });
+  $('#settings-btn').addEventListener('click', () => {
+    const d = $('#settings'); d.open = true;
+    d.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setTimeout(() => $('#proxy').focus({ preventScroll: true }), 300);
+  });
   $('#input').addEventListener('input', updateHint);
   $('#input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) run(); });
 

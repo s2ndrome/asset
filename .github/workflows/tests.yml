@@ -1,0 +1,28 @@
+name: Tests
+
+# 사이트 배포는 GitHub Pages 의 "Deploy from a branch" (main / root) 로 합니다.
+# 이 워크플로는 푸시·PR 마다 파서·URL·Worker·CLI 테스트만 돌립니다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pillow
+      - run: python tests/gen_fixtures.py
+      - run: node --test tests/*.test.mjs
+      - run: python -m unittest discover -s tests -p "test_*.py" -v
