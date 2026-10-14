@@ -114,8 +114,8 @@ export function parseLines(text) {
     .map((l) => l.trim())
     .filter(Boolean)
     .map((line) => {
-      const r = parseCaveduckUrl(line);
-      return r ? r : { input: line, error: '지원하는 이미지 주소로 인식할 수 없음' };
+      const r = parseImageUrl(line);
+      return r ? r : { input: line, error: '이미지 주소(https://…)로 인식할 수 없음' };
     });
 }
 
@@ -201,4 +201,125 @@ export function extractFromHtml(html) {
       const parsed = parseCaveduckUrl(urls[0] || `https://${CDN_HOST}/charim/${uuid}`);
       return { uuid, urls, descriptions, parsed };
     });
+}
+
+// ───────────── caveduck 외 사이트 (티스토리·노션·일반 이미지 주소) ─────────────
+
+function safeDecode(s) {
+  let t = s;
+  for (let i = 0; i < 3 && /%[0-9a-f]{2}/i.test(t); i++) {
+    try { t = decodeURIComponent(t); } catch { break; }
+  }
+  return t;
+}
+
+function fileNameOf(url) {
+  try {
+    const p = new URL(url).pathname.split('/').filter(Boolean);
+    return p.length ? safeDecode(p[p.length - 1]) : new URL(url).hostname;
+  } catch { return url; }
+}
+
+/**
+ * 일반 이미지 주소 → 원본 후보.
+ * - 티스토리: i1.daumcdn.net/thumb/...?fname=<원본> → 원본(blog.kakaocdn.net/dn/...) 먼저, cfile 은 ?original
+ * - 노션: notion.so/image/<원본> 또는 *.notion.site/image/<원본> → 원본(S3), 크기 지정 없는 프록시 주소
+ * - 그 밖: Cloudflare /cdn-cgi/image/<옵션>/ 리사이즈를 떼어 낸 주소 → 입력 주소
+ */
+export function parseGenericUrl(raw) {
+  const input = cleanInput(raw);
+  if (!/^https?:\/\//i.test(input)) return null;
+  let u;
+  try { u = new URL(input); } catch { return null; }
+  const host = u.hostname.toLowerCase();
+  const list = [];
+  const add = (url, label, note = '', derived = false) => { if (url) list.push({ url, kind: null, label, note, derived }); };
+  let site = '이미지';
+
+  if (/(^|\.)daumcdn\.net$/.test(host) || /(^|\.)kakaocdn\.net$/.test(host) || /(^|\.)tistory\.com$/.test(host)) {
+    site = '티스토리';
+    const fname = u.searchParams.get('fname');
+    if (fname) {
+      const orig = safeDecode(fname).replace(/^http:\/\//i, 'https://');
+      add(orig, '원본(fname 에서 추출)');
+      add(input, '입력 주소(썸네일)', '', true);
+    } else if (/^\/cfile\/tistory\//i.test(u.pathname)) {
+      add(`${u.origin}${u.pathname}?original`, '원본(?original)');
+      add(input, '입력 주소', '', true);
+    } else {
+      add(input, '입력 주소');
+    }
+  } else if (/(^|\.)notion\.so$/.test(host) || /\.notion\.site$/.test(host)) {
+    site = '노션';
+    const m = u.pathname.match(/^\/image\/(.+)$/);
+    if (m) {
+      const inner = safeDecode(m[1]);
+      if (/^https?:\/\//i.test(inner)) add(inner, '원본(S3, 서명 필요할 수 있음)');
+      const full = new URL(input);
+      full.searchParams.delete('width');
+      full.searchParams.delete('cache');
+      add(full.toString(), '노션 원본 크기', 'width 파라미터 제거');
+      add(input, '입력 주소', '', true);
+    } else {
+      add(input, '입력 주소');
+    }
+  } else if (/amazonaws\.com$/.test(host) && /notion/.test(input) || /notionusercontent\.com$/.test(host)) {
+    site = '노션';
+    add(input, '입력 주소');
+  } else {
+    site = host.replace(/^www\./, '');
+    const cf = u.pathname.match(/^\/cdn-cgi\/image\/[^/]*\/(.+)$/);
+    if (cf) {
+      const rest = cf[1];
+      add(/^https?:\/\//i.test(rest) ? rest : `${u.origin}/${rest}${u.search}`, '리사이즈 제거');
+      add(input, '입력 주소(리사이즈)', '', true);
+    } else {
+      add(input, '입력 주소');
+    }
+  }
+  const seen = new Set();
+  const candidates = list.filter((c) => (seen.has(c.url) ? false : (seen.add(c.url), true)));
+  return { input, uuid: null, kind: site, site, v: '', title: `${site} · ${fileNameOf(candidates[0].url)}`, normalized: candidates[0].url, candidates };
+}
+
+/** caveduck 이면 전용 규칙, 아니면 일반 규칙 */
+export function parseImageUrl(raw) {
+  const c = parseCaveduckUrl(raw);
+  if (c) {
+    for (const x of c.candidates) x.derived = x.kind === 'charim-standard' || x.kind === 'charim-160x160' || x.kind === 'charim-1920x';
+    return { ...c, site: 'caveduck', title: c.uuid || c.input };
+  }
+  return parseGenericUrl(raw);
+}
+
+/** HTML 소스의 일반 이미지(<img src>, data-src, srcset, og:image) 추출 */
+export function extractGenericImages(html, limit = 300) {
+  const src = String(html ?? '');
+  const out = new Map();
+  const push = (url, alt) => {
+    const clean = cleanInput(url.replace(/&amp;/g, '&'));
+    if (!/^https?:\/\//i.test(clean) || /\.(svg|ico)(\?|$)/i.test(clean) || /cdn\.caveduck\.io/i.test(clean)) return;
+    if (out.size >= limit && !out.has(clean)) return;
+    const e = out.get(clean) || { key: clean, urls: [clean], descriptions: [] };
+    if (alt && !e.descriptions.some((d) => d.value === alt)) e.descriptions.push({ key: 'alt', value: alt });
+    out.set(clean, e);
+  };
+  for (const m of src.matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0];
+    const alt = (tag.match(/\balt\s*=\s*"([^"]*)"/i) || [])[1]?.trim();
+    for (const a of ['data-original', 'data-src', 'data-url', 'src']) {
+      const v = tag.match(new RegExp(`\\b${a}\\s*=\\s*"([^"]+)"`, 'i'));
+      if (v) { push(v[1], alt); break; }
+    }
+    const ss = tag.match(/\bsrcset\s*=\s*"([^"]+)"/i);
+    if (ss) {
+      const best = ss[1].split(',').map((s) => s.trim().split(/\s+/)).sort((a, b) => parseFloat(b[1] || 0) - parseFloat(a[1] || 0))[0];
+      if (best) push(best[0], alt);
+    }
+  }
+  for (const m of src.matchAll(/<meta\b[^>]*(?:og:image|twitter:image)[^>]*>/gi)) {
+    const v = m[0].match(/\bcontent\s*=\s*"([^"]+)"/i);
+    if (v) push(v[1], '대표 이미지');
+  }
+  return [...out.values()].map((e) => ({ ...e, uuid: null, parsed: parseGenericUrl(e.urls[0]) })).filter((e) => e.parsed);
 }

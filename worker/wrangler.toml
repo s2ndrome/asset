@@ -7,3 +7,5 @@ compatibility_date = "2024-09-23"
 ALLOWED_ORIGINS = "*"
 # 최대 전달 크기 (25 MiB)
 MAX_BYTES = "26214400"
+# 추가로 허용할 이미지 호스트 (쉼표 구분, ".example.com" 은 하위 도메인까지)
+EXTRA_HOSTS = ""

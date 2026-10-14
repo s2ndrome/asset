@@ -1,4 +1,4 @@
-import { parseLines, looksLikeHtml, extractFromHtml, parseCaveduckUrl } from './url.js';
+import { parseLines, looksLikeHtml, extractFromHtml, extractGenericImages, parseCaveduckUrl } from './url.js';
 import { parseImage, decodeStealth, mergeStealth } from './parser.js';
 
 const $ = (s) => document.querySelector(s);
@@ -47,6 +47,7 @@ function download(name, data, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
 
+const slug = (t) => String(t || 'image').replace(/[^\p{L}\p{N}._-]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'image';
 const fmtSize = (n) => (n == null ? '' : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`);
 
 // ───────────── 설정 ─────────────
@@ -166,7 +167,7 @@ function renderEntry(e) {
   return d;
 }
 
-function renderMeta(container, meta, { bytes, sourceLabel, kind, exportBase }) {
+function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase }) {
   const blobUrl = URL.createObjectURL(new Blob([bytes], { type: meta.mime }));
   const facts = h('dl', { class: 'facts' });
   const fact = (k, v) => { if (v != null && v !== '') facts.append(h('dt', {}, k), h('dd', {}, String(v))); };
@@ -185,7 +186,7 @@ function renderMeta(container, meta, { bytes, sourceLabel, kind, exportBase }) {
     main.append(h('div', { class: 'note warn' },
       h('b', {}, '이 파일에는 생성 정보가 없음'),
       h('p', {}, '업로드·변환 과정에서 제거됐을 가능성이 큽니다.' +
-        (kind && kind !== 'charim' ? ` (${kind} 는 CDN 이 다시 인코딩한 파일이라 메타데이터가 거의 남지 않습니다.)` : '') +
+        (derived ? ' (사이트가 줄이거나 다시 인코딩한 파일이라 메타데이터가 거의 남지 않아요.)' : '') +
         (meta.entries.length ? ' 아래는 남아 있는 일반 메타데이터입니다.' : ''))));
   } else {
     main.append(h('div', { class: 'note ok' }, h('b', {}, '생성 정보를 찾았습니다')));
@@ -289,7 +290,7 @@ function urlCard(parsed, descriptions = []) {
   const card = h('article', { class: 'card' });
   card.append(h('div', { class: 'card-head' },
     h('div', {},
-      h('h2', {}, parsed.uuid || '이미지'),
+      h('h2', {}, parsed.title || parsed.uuid || '이미지'),
       h('div', { class: 'src' }, parsed.input)),
     h('button', { class: 'x-btn', type: 'button', onclick: () => removeCard(card), 'aria-label': '닫기' }, '✕')));
   if (parsed.kind) card.append(h('div', { class: 'tags' }, h('span', { class: 'tag on' }, parsed.kind), parsed.v ? h('span', { class: 'tag' }, `v=${parsed.v}`) : null));
@@ -345,8 +346,8 @@ function urlCard(parsed, descriptions = []) {
       const sec = h('section', {}, h('h3', {}, `${r.c.label} 분석 결과`));
       body.append(sec);
       renderMeta(sec, meta, {
-        bytes: got.buf, sourceLabel: r.c.url, kind: r.c.kind,
-        exportBase: `meta_${parsed.uuid || 'image'}_${r.c.kind || 'x'}`,
+        bytes: got.buf, sourceLabel: r.c.url, derived: !!r.c.derived,
+        exportBase: `meta_${parsed.uuid || slug(parsed.title)}_${slug(r.c.kind || r.c.label)}`,
       });
       if (meta.format !== 'HTML' && !settings.tryAll) done = true;
       await probeP;
@@ -371,7 +372,7 @@ function urlCard(parsed, descriptions = []) {
       }
     }
     body.append(h('div', { class: 'btn-row' },
-      h('button', { class: 'btn', type: 'button', onclick: () => download(`meta_${parsed.uuid || 'image'}_candidates.json`, JSON.stringify(report, null, 2)) }, '후보 상태 JSON 다운로드')));
+      h('button', { class: 'btn', type: 'button', onclick: () => download(`meta_${parsed.uuid || slug(parsed.title)}_candidates.json`, JSON.stringify(report, null, 2)) }, '후보 상태 JSON 다운로드')));
   });
 }
 
@@ -388,7 +389,7 @@ async function fileCard(file) {
   const base = (file.name || 'image').replace(/\.[^.]+$/, '');
   // 파일 이름에 이미지 uuid 가 있으면 종류를 알려 준다
   const p = parseCaveduckUrl(file.name || '');
-  renderMeta(card, meta, { bytes: buf, sourceLabel: `파일: ${file.name || '(붙여넣기)'}`, kind: p?.kind, exportBase: `${base}_meta` });
+  renderMeta(card, meta, { bytes: buf, sourceLabel: `파일: ${file.name || '(붙여넣기)'}`, derived: ['charim-standard', 'charim-160x160', 'charim-1920x'].includes(p?.kind), exportBase: `${base}_meta` });
 }
 
 // ───────────── 카드: HTML 추출 ─────────────
@@ -396,18 +397,18 @@ async function fileCard(file) {
 function htmlCard(found) {
   const card = h('article', { class: 'card' });
   card.append(h('div', { class: 'card-head' },
-    h('div', {}, h('h2', {}, `페이지 소스에서 이미지 ${found.length}개를 찾았습니다`),
-      h('p', { class: 'muted' }, 'UUID 기준으로 중복을 합쳤어요. 항목마다 원본 찾기를 누르세요.')),
+    h('div', {}, h('h2', {}, `페이지 소스에서 이미지 ${found.length}개를 찾았어요`),
+      h('p', { class: 'muted' }, '같은 이미지는 하나로 합쳤어요. 항목마다 원본 찾기를 누르세요.')),
     h('button', { class: 'x-btn', type: 'button', onclick: () => removeCard(card), 'aria-label': '닫기' }, '✕')));
   const list = h('div', { class: 'list' });
   for (const f of found) {
-    const thumb = `https://cdn.caveduck.io/charim-160x160/${f.uuid}`;
+    const thumb = f.uuid ? `https://cdn.caveduck.io/charim-160x160/${f.uuid}` : f.urls[0];
     list.append(h('div', { class: 'item' },
       h('img', { src: thumb, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }),
       h('div', { class: 'meta' },
         ...f.descriptions.map((d) => h('div', { class: 'desc' }, `${d.key === 'imageNameInternal' ? '' : d.key + ': '}${d.value}`)),
-        h('div', { class: 'u' }, f.uuid),
-        h('div', { class: 'muted' }, `${f.urls.length}개 주소 · ${[...new Set(f.urls.map((u) => parseCaveduckUrl(u)?.kind).filter(Boolean))].join(', ')}`),
+        h('div', { class: 'u' }, f.uuid || f.urls[0]),
+        h('div', { class: 'muted' }, f.uuid ? `${f.urls.length}개 주소 · ${[...new Set(f.urls.map((u) => parseCaveduckUrl(u)?.kind).filter(Boolean))].join(', ')}` : f.parsed.site),
         h('div', { class: 'btn-row' },
           h('button', { class: 'btn sm', type: 'button', onclick: () => urlCard(f.parsed, f.descriptions) }, '원본 찾기'),
           copyBtn(() => f.urls.join('\n'), '주소 복사')))));
@@ -422,11 +423,15 @@ function htmlCard(found) {
 
 // ───────────── 입력 처리 ─────────────
 
+function findImagesInHtml(text) {
+  return [...extractFromHtml(text), ...extractGenericImages(text)];
+}
+
 function run() {
   const text = $('#input').value;
   if (!text.trim()) { toast('주소를 입력하세요'); return; }
   if (looksLikeHtml(text)) {
-    const found = extractFromHtml(text);
+    const found = findImagesInHtml(text);
     if (!found.length) { toast('이미지 주소를 찾지 못했습니다'); return; }
     htmlCard(found);
     return;
@@ -435,16 +440,16 @@ function run() {
   const bad = items.filter((x) => x.error);
   // 같은 UUID 는 한 번만
   const seen = new Set();
-  const good = items.filter((x) => !x.error && (x.uuid ? (seen.has(x.uuid) ? false : (seen.add(x.uuid), true)) : true));
+  const good = items.filter((x) => { if (x.error) return false; const k = x.uuid || x.normalized; return seen.has(k) ? false : (seen.add(k), true); });
   [...good].reverse().forEach((p) => urlCard(p));
-  if (bad.length) toast(`${bad.length}줄은 지원하는 이미지 주소가 아니라서 건너뛰었습니다`);
+  if (bad.length) toast(`${bad.length}줄은 이미지 주소(https://…)가 아니라서 건너뛰었어요`);
 }
 
 let HINT0 = '';
 function updateHint() {
   const t = $('#input').value;
   if (!t.trim()) { $('#modeHint').textContent = HINT0; return; }
-  if (looksLikeHtml(t)) $('#modeHint').textContent = `HTML 소스 모드 · 이미지 ${extractFromHtml(t).length}개 감지`;
+  if (looksLikeHtml(t)) $('#modeHint').textContent = `HTML 소스 모드 · 이미지 ${findImagesInHtml(t).length}개 감지`;
   else {
     const items = parseLines(t);
     const ok = items.filter((x) => !x.error).length;

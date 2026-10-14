@@ -79,3 +79,48 @@ test('HTML 소스에서 추출 + imageNameInternal', () => {
 test('평범한 URL 목록은 HTML 로 보지 않음', () => {
   assert.equal(looksLikeHtml(`${EX}\n${EX}`), false);
 });
+
+import { parseImageUrl, extractGenericImages } from '../js/url.js';
+
+test('티스토리 썸네일 → fname 원본 먼저', () => {
+  const r = parseImageUrl('https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2FbX1%2FbtsY2%2Fabc%2Fimg.png |');
+  assert.equal(r.site, '티스토리');
+  assert.equal(r.candidates[0].url, 'https://blog.kakaocdn.net/dn/bX1/btsY2/abc/img.png');
+  assert.equal(r.candidates[1].derived, true);
+});
+
+test('티스토리 cfile → ?original', () => {
+  const r = parseImageUrl('https://t1.daumcdn.net/cfile/tistory/99ABC33F5C');
+  assert.equal(r.candidates[0].url, 'https://t1.daumcdn.net/cfile/tistory/99ABC33F5C?original');
+});
+
+test('노션 image 프록시 → S3 원본, width 제거', () => {
+  const r = parseImageUrl('https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fabc%2Fimage.png?table=block&id=1&width=640');
+  assert.equal(r.site, '노션');
+  assert.equal(r.candidates[0].url, 'https://prod-files-secure.s3.us-west-2.amazonaws.com/abc/image.png');
+  assert.ok(!r.candidates[1].url.includes('width='));
+});
+
+test('일반 주소: 그대로, cdn-cgi 리사이즈 제거', () => {
+  assert.deepEqual(parseImageUrl('https://pbs.twimg.com/media/x.png').candidates.map((c) => c.url), ['https://pbs.twimg.com/media/x.png']);
+  assert.equal(parseImageUrl('https://ex.com/cdn-cgi/image/w=400/pics/a.png').candidates[0].url, 'https://ex.com/pics/a.png');
+  assert.equal(parseImageUrl('hello'), null);
+});
+
+test('caveduck 주소는 전용 규칙 유지', () => {
+  const r = parseImageUrl(EX);
+  assert.equal(r.site, 'caveduck');
+  assert.equal(r.candidates[0].url, `https://cdn.caveduck.io/charim/${UUID}`);
+  assert.equal(r.candidates.find((c) => c.kind === 'charim-standard').derived, true);
+});
+
+test('HTML 일반 이미지 추출 (img/data-src/srcset/og:image)', () => {
+  const html = `<html><meta property="og:image" content="https://ex.com/og.png">
+    <img src="https://ex.com/a.png" alt="첫 그림"><img data-src="https://ex.com/b.jpg" src="data:image/gif;base64,AA">
+    <img srcset="https://ex.com/c-1x.png 1x, https://ex.com/c-2x.png 2x"><img src="/rel.png"><img src="https://ex.com/i.svg"></html>`;
+  const r = extractGenericImages(html);
+  const urls = r.map((x) => x.urls[0]);
+  assert.ok(urls.includes('https://ex.com/a.png') && urls.includes('https://ex.com/b.jpg') && urls.includes('https://ex.com/c-2x.png') && urls.includes('https://ex.com/og.png'));
+  assert.ok(!urls.some((u) => u.endsWith('.svg') || u.startsWith('data:')));
+  assert.equal(r.find((x) => x.urls[0] === 'https://ex.com/a.png').descriptions[0].value, '첫 그림');
+});

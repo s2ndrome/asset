@@ -1,7 +1,7 @@
 # ZZUN META thief ♡
 
-캐릭터 챗 사이트 [caveduck.io](https://caveduck.io)의 이미지 링크를 붙여넣으면 **원본 이미지 주소를 찾고**,
-그 파일 안에 들어 있는 **AI 생성 메타데이터(프롬프트, 네거티브, 시드, 샘플러 등)** 를 보여주는 정적 웹 도구입니다.
+이미지 링크를 붙여넣으면 **원본 이미지 주소를 찾고**, 그 파일 안에 들어 있는 **AI 생성 메타데이터(프롬프트, 네거티브, 시드, 샘플러 등)** 를 보여주는 정적 웹 도구입니다.
+caveduck.io 주소는 전용 규칙으로 원본을 찾고, **티스토리·노션** 주소는 썸네일/프록시 주소 안에 든 원본 주소를 꺼내며, 그 밖의 이미지 주소는 그대로 시도합니다.
 빌드 도구 없이 `index.html` + `style.css` + `js/*.js` 만으로 동작하고, GitHub Pages로 배포할 수 있습니다.
 
 > ⚠️ **먼저 알아둘 점**: CDN에서 변환된 이미지(`charim-standard`, `charim-160x160`, `cdn-cgi/image/...f=auto` 리사이즈 등)는
@@ -42,7 +42,21 @@
 - **프록시 주소**: CORS 우회용. 브라우저 `localStorage` 에 저장됩니다.
 - 직접 요청 건너뛰고 프록시만 사용 / 모든 후보 검사(첫 성공에서 멈추지 않음) / 픽셀에 숨긴 정보(stealth pnginfo) 검사
 
-## URL 변환 규칙
+## 다른 사이트 주소
+
+| 사이트 | 입력 예 | 먼저 시도하는 원본 |
+|---|---|---|
+| 티스토리 | `https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2F…%2Fimg.png` | `fname` 안의 `https://blog.kakaocdn.net/dn/…/img.png` |
+| 티스토리(옛 cfile) | `https://t1.daumcdn.net/cfile/tistory/<id>` | `…/cfile/tistory/<id>?original` |
+| 노션 | `https://www.notion.so/image/<인코딩된 원본>?table=block&id=…&width=…` | 안에 든 S3 원본 → `width` 를 뗀 노션 주소 → 입력 주소 |
+| 그 밖 | 아무 `https://` 이미지 주소 | Cloudflare `/cdn-cgi/image/<옵션>/` 이 있으면 뗀 주소, 없으면 입력 주소 그대로 |
+
+- 페이지 HTML 소스를 붙여넣으면 `<img src>`·`data-src`·`srcset`(가장 큰 것)·`og:image` 이미지도 모두 뽑습니다(`alt` 를 설명으로 표시).
+- 메타데이터가 남아 있는지는 사이트가 **원본 파일을 그대로 주는지**에 달려 있습니다. 썸네일·리사이즈본은 대개 지워져 있습니다.
+- 노션 S3 원본은 서명(만료 시간)이 필요한 경우가 많아 실패할 수 있습니다. 그럴 땐 노션 주소나, 이미지를 저장해 파일로 넣으세요.
+- 브라우저에서 직접 읽기가 막히면(CORS) 프록시가 필요합니다. 기본 Worker 는 caveduck·티스토리(카카오)·노션 이미지 호스트만 허용합니다(`EXTRA_HOSTS` 로 추가).
+
+## URL 변환 규칙 (caveduck)
 
 입력 예:
 ```
@@ -105,9 +119,9 @@ CORS로 막혀도 `<img>` 태그 로드는 가능하므로, 도구는 각 후보
 
 ## 프록시 설정 (Cloudflare Workers)
 
-`worker/worker.js` 는 **`cdn.caveduck.io` 만 허용**하는 작은 CORS 프록시입니다.
+`worker/worker.js` 는 **허용 목록의 이미지 호스트만** 받는 작은 CORS 프록시입니다(caveduck, 티스토리 `*.daumcdn.net`·`*.kakaocdn.net`·`*.tistory.com`, 노션 `notion.so`·`*.notion.site`·노션 S3 버킷). 다른 호스트는 `EXTRA_HOSTS` 환경 변수로 추가합니다.
 
-- 호스트 화이트리스트(`https://cdn.caveduck.io` 만, 사용자 정보·다른 포트·외부로의 리다이렉트 거부)
+- 호스트 화이트리스트(위 목록만, 사용자 정보·다른 포트·목록 밖으로의 리다이렉트 거부)
 - 파일 크기 제한(`MAX_BYTES`, 기본 25 MiB — `Content-Length` 와 실제 스트림 양쪽에서 검사)
 - 허용 Origin 제한(`ALLOWED_ORIGINS`, 기본 `*`)
 - `Accept: */*` 고정 — 이미지 최적화가 WebP/AVIF로 바꿔서 주지 않게

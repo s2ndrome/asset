@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""caveduck.io 이미지의 원본 주소를 찾아 AI 생성 메타데이터(프롬프트 등)를 출력한다.
+"""이미지 주소(caveduck·티스토리·노션·일반)의 원본을 찾아 AI 생성 메타데이터(프롬프트 등)를 출력한다.
 
 사용법:
     python caveduck_meta.py <caveduck 이미지 URL | 이미지 파일 | 페이지 HTML 파일> [...]
@@ -116,6 +116,67 @@ def parse_caveduck_url(raw: str):
             seen.add(c["url"])
             cands.append(c)
     return {"input": inp, "uuid": uuid, "kind": kind, "v": v, "candidates": cands}
+
+
+def _decode(s: str) -> str:
+    for _ in range(3):
+        if not re.search(r"%[0-9a-fA-F]{2}", s):
+            break
+        s = urllib.parse.unquote(s)
+    return s
+
+
+def parse_generic_url(raw: str):
+    """티스토리·노션·일반 이미지 주소 → 원본 후보 (caveduck 이 아닌 경우)"""
+    inp = clean_input(raw)
+    if not re.match(r"^https?://", inp, re.I):
+        return None
+    u = urllib.parse.urlsplit(inp)
+    host = (u.hostname or "").lower()
+    qs = urllib.parse.parse_qs(u.query)
+    cands = []
+
+    def add(url, label, derived=False):
+        if url and url not in [c["url"] for c in cands]:
+            cands.append({"url": url, "kind": None, "label": label, "note": "", "derived": derived})
+
+    if re.search(r"(^|\.)(daumcdn\.net|kakaocdn\.net|tistory\.com)$", host):
+        site = "티스토리"
+        if qs.get("fname"):
+            add(re.sub(r"^http://", "https://", _decode(qs["fname"][0]), flags=re.I), "원본(fname 에서 추출)")
+            add(inp, "입력 주소(썸네일)", True)
+        elif re.match(r"^/cfile/tistory/", u.path, re.I):
+            add(f"{u.scheme}://{u.netloc}{u.path}?original", "원본(?original)")
+            add(inp, "입력 주소", True)
+        else:
+            add(inp, "입력 주소")
+    elif re.search(r"(^|\.)notion\.so$|\.notion\.site$", host):
+        site = "노션"
+        m = re.match(r"^/image/(.+)$", u.path)
+        if m:
+            inner = _decode(m.group(1))
+            if re.match(r"^https?://", inner):
+                add(inner, "원본(S3, 서명 필요할 수 있음)")
+            q = urllib.parse.urlencode([(k, v) for k, vs in qs.items() for v in vs if k not in ("width", "cache")])
+            add(urllib.parse.urlunsplit((u.scheme, u.netloc, u.path, q, "")), "노션 원본 크기")
+            add(inp, "입력 주소", True)
+        else:
+            add(inp, "입력 주소")
+    else:
+        site = host[4:] if host.startswith("www.") else host
+        m = re.match(r"^/cdn-cgi/image/[^/]*/(.+)$", u.path)
+        if m:
+            rest = m.group(1)
+            add(rest if re.match(r"^https?://", rest) else f"{u.scheme}://{u.netloc}/{rest}" + (f"?{u.query}" if u.query else ""), "리사이즈 제거")
+            add(inp, "입력 주소(리사이즈)", True)
+        else:
+            add(inp, "입력 주소")
+    name = urllib.parse.unquote(cands[0]["url"].split("?")[0].rstrip("/").rsplit("/", 1)[-1]) or host
+    return {"input": inp, "uuid": None, "kind": site, "v": "", "site": site, "title": f"{site} · {name}", "candidates": cands}
+
+
+def parse_image_url(raw: str):
+    return parse_caveduck_url(raw) or parse_generic_url(raw)
 
 
 def looks_like_html(text: str) -> bool:
@@ -770,7 +831,7 @@ def export(res, extra=None):
 # ───────────────────────── 메인 ─────────────────────────
 
 def process_url(parsed, args, results, descriptions=None):
-    print(col(f"\n━━ {parsed.get('uuid') or parsed['input']}", "b"))
+    print(col(f"\n━━ {parsed.get('uuid') or parsed.get('title') or parsed['input']}", "b"))
     print(col(f"   입력: {parsed['input']}", "d"))
     for d in descriptions or []:
         print(f"   {d['key']}: {d['value']}")
@@ -843,11 +904,11 @@ def handle(arg, args, results):
     p = Path(arg)
     if not re.match(r"^https?://", arg) and p.exists() and p.is_file():
         return process_file(p, args, results)
-    parsed = parse_caveduck_url(arg)
+    parsed = parse_image_url(arg)
     if not parsed:
         if looks_like_html(arg):
             return process_text(arg, args, results)
-        print(col(f"\n✖ caveduck 이미지 주소나 파일이 아님: {arg}", "r"))
+        print(col(f"\n✖ 이미지 주소(https://…)나 파일이 아님: {arg}", "r"))
         results.append({"input": arg, "error": "인식 불가"})
         return
     process_url(parsed, args, results)
@@ -860,7 +921,7 @@ def main(argv=None):
         except Exception:  # noqa: BLE001
             pass
     ap = argparse.ArgumentParser(description="caveduck.io 이미지 원본 주소 찾기 + AI 생성 메타데이터 출력")
-    ap.add_argument("inputs", nargs="+", help="caveduck 이미지 URL, 이미지 파일, HTML 파일, 또는 - (표준입력)")
+    ap.add_argument("inputs", nargs="+", help="이미지 URL, 이미지 파일, HTML 파일, 또는 - (표준입력)")
     ap.add_argument("--all", action="store_true", help="첫 성공에서 멈추지 않고 모든 후보를 받아서 검사")
     ap.add_argument("--json", metavar="FILE", help="결과를 JSON 으로 저장 (- 이면 표준출력)")
     ap.add_argument("--save", metavar="DIR", help="받은 이미지 파일을 DIR 에 저장")

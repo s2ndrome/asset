@@ -44,6 +44,18 @@ class UrlTest(unittest.TestCase):
         self.assertEqual(found[0]["descriptions"], [{"key": "imageNameInternal", "value": "표정1"}])
 
 
+class GenericUrlTest(unittest.TestCase):
+    def test_tistory_notion_generic(self):
+        r = cm.parse_image_url("https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2Fa%2Fb%2Fimg.png")
+        self.assertEqual(r["candidates"][0]["url"], "https://blog.kakaocdn.net/dn/a/b/img.png")
+        r = cm.parse_image_url("https://www.notion.so/image/https%3A%2F%2Fprod-files-secure.s3.us-west-2.amazonaws.com%2Fx%2Fi.png?table=block&id=1&width=640")
+        self.assertEqual(r["candidates"][0]["url"], "https://prod-files-secure.s3.us-west-2.amazonaws.com/x/i.png")
+        self.assertNotIn("width=", r["candidates"][1]["url"])
+        self.assertEqual(cm.parse_image_url("https://pbs.twimg.com/m/x.png")["candidates"][0]["url"], "https://pbs.twimg.com/m/x.png")
+        self.assertIsNone(cm.parse_image_url("hello"))
+        self.assertEqual(cm.parse_image_url(EX)["candidates"][0]["url"], f"https://cdn.caveduck.io/charim/{UUID}")
+
+
 class ParserTest(unittest.TestCase):
     def test_png_text(self):
         r = parse("a1111_text.png")
