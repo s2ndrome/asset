@@ -76,7 +76,6 @@ code { font-family: var(--mono); font-size: .92em; background: var(--ice); paddi
 .box > summary::after { content: "▾"; margin-left: auto; font-size: 10px; color: var(--mid); }
 .box:not([open]) > summary::after { content: "▸"; }
 .box > summary small { font: 400 10px var(--round); color: var(--mid); }
-.box.foot { padding: 6px 18px 14px; }
 
 .f { display: block; margin-top: 10px; font: 400 10.5px var(--round); color: var(--mid); }
 .f input[type=text], .f textarea { display: block; width: 100%; margin-top: 3px; padding: 6px 10px; border: 2px solid var(--line); border-radius: 0; background: var(--paper); color: var(--ink); font: 400 12px/1.5 var(--round); transition: border-color .2s; }
