@@ -1,0 +1,9 @@
+name = "caveduck-proxy"
+main = "worker.js"
+compatibility_date = "2024-09-23"
+
+[vars]
+# 내 GitHub Pages 주소만 허용하려면 예: "https://<아이디>.github.io,http://localhost:8000"
+ALLOWED_ORIGINS = "*"
+# 최대 전달 크기 (25 MiB)
+MAX_BYTES = "26214400"

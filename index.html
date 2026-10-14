@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Caveduck 메타 뷰어</title>
+  <meta name="description" content="caveduck.io 이미지 링크에서 원본 주소를 찾고 AI 생성 메타데이터(프롬프트 등)를 보여주는 도구">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f6bed'/%3E%3Cpath d='M8 22l5-7 4 5 3-3 4 5z' fill='white'/%3E%3Ccircle cx='21' cy='11' r='2.5' fill='white'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-inner">
+      <h1>Caveduck 메타 뷰어</h1>
+      <button id="themeBtn" class="ghost" type="button" aria-label="테마 전환" title="테마 전환"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg></button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <label for="input" class="lbl">caveduck 이미지 주소 (여러 줄 가능) 또는 페이지 HTML 소스 전체</label>
+      <textarea id="input" rows="4" spellcheck="false" autocomplete="off"
+        placeholder="https://cdn.caveduck.io/cdn-cgi/image/anim=true,dpr=2,f=auto,w=800/charim-standard/a1723c53-…?v=47d447"></textarea>
+      <div class="row">
+        <button id="runBtn" type="button" class="primary">원본 찾기 · 분석</button>
+        <button id="clearBtn" type="button" class="ghost">지우기</button>
+        <span id="modeHint" class="muted small"></span>
+      </div>
+
+      <div id="drop" class="drop" tabindex="0" role="button" aria-label="이미지 파일 선택">
+        <input id="fileInput" type="file" accept="image/*,.png,.jpg,.jpeg,.webp,.gif,.avif" multiple hidden>
+        <strong>이미지 파일을 여기로 끌어다 놓기</strong>
+        <span class="muted small">또는 눌러서 선택 · 붙여넣기(Ctrl+V)도 됩니다. 파일은 브라우저 안에서만 읽고 어디에도 올리지 않습니다.</span>
+      </div>
+
+      <details class="settings" id="settings">
+        <summary>가져오기 설정 (CORS 프록시)</summary>
+        <div class="settings-body">
+          <label for="proxy" class="lbl">프록시 주소</label>
+          <input id="proxy" type="url" placeholder="https://caveduck-proxy.<계정>.workers.dev" spellcheck="false" autocomplete="off">
+          <p class="muted small">브라우저가 cdn.caveduck.io 파일을 직접 읽지 못할 때(CORS) 사용합니다.
+            <code>{url}</code>이 들어 있으면 그 자리에, 없으면 <code>?url=</code> 뒤에 원래 주소를 붙입니다. 이 브라우저에만 저장됩니다.</p>
+          <label class="chk"><input id="proxyOnly" type="checkbox"> 직접 요청은 건너뛰고 프록시만 사용</label>
+          <label class="chk"><input id="tryAll" type="checkbox"> 첫 성공에서 멈추지 말고 모든 후보 검사</label>
+          <label class="chk"><input id="stealth" type="checkbox" checked> 픽셀에 숨긴 정보(stealth pnginfo)도 검사</label>
+        </div>
+      </details>
+    </section>
+
+    <section id="results" aria-live="polite"></section>
+
+    <footer class="foot muted small">
+      CDN이 변환한 이미지(<code>charim-standard</code>, <code>charim-160x160</code>, <code>f=auto</code> 리사이즈 등)는
+      메타데이터가 지워져 있을 가능성이 높습니다. 원본(<code>charim/</code>)이 있으면 그쪽을 먼저 확인합니다.
+      · 정적 페이지 · 서버로 아무것도 보내지 않음(프록시를 설정한 경우 그 프록시만 사용)
+    </footer>
+  </main>
+
+  <template id="toastTpl"><div class="toast"></div></template>
+</body>
+</html>
