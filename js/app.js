@@ -1,5 +1,6 @@
 import { parseLines, looksLikeHtml, extractFromHtml, extractGenericImages, parseCaveduckUrl } from './url.js';
 import { parseImage, decodeStealth, mergeStealth } from './parser.js';
+import { makeZip } from './zip.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -167,7 +168,7 @@ function renderEntry(e) {
   return d;
 }
 
-function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase }) {
+function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase, saveStem }) {
   const blobUrl = URL.createObjectURL(new Blob([bytes], { type: meta.mime }));
   const facts = h('dl', { class: 'facts' });
   const fact = (k, v) => { if (v != null && v !== '') facts.append(h('dt', {}, k), h('dd', {}, String(v))); };
@@ -179,7 +180,16 @@ function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase }
   if (meta.hasAlpha) fact('알파 채널', '있음');
   fact('메타 항목 수', meta.entries.length);
 
-  const side = h('div', { class: 'preview' }, h('img', { src: blobUrl, alt: '미리보기', loading: 'lazy' }));
+  const ext = { PNG: 'png', JPEG: 'jpg', WebP: 'webp', GIF: 'gif', AVIF: 'avif' }[meta.format] || 'bin';
+  const fileName = `${saveStem || exportBase}.${ext}`;
+  const saveFile = () => download(fileName, new Blob([bytes], { type: meta.mime }));
+  const side = h('div', { class: 'side' },
+    h('div', { class: 'preview' }, h('img', { src: blobUrl, alt: '미리보기', loading: 'lazy' })),
+    h('button', { class: 'primary save-btn', type: 'button', onclick: saveFile }, '원본 이미지 저장'),
+    h('p', { class: 'muted' }, meta.hasGenerationInfo
+      ? '받은 파일을 그대로 저장해서 생성 정보가 함께 들어 있어요.'
+      : '받은 파일을 손대지 않고 그대로 저장해요.'));
+  if (meta.format !== 'HTML') savedFiles.push({ card: container.closest('.card') || container, name: fileName, bytes, hasGen: meta.hasGenerationInfo });
   const main = h('div', {}, facts);
 
   if (!meta.hasGenerationInfo) {
@@ -199,13 +209,23 @@ function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase }
     out.append(h('h3', {}, '원본 메타데이터 항목'));
     for (const e of meta.entries) out.append(renderEntry(e));
   }
-  const ext = { PNG: 'png', JPEG: 'jpg', WebP: 'webp', GIF: 'gif', AVIF: 'avif' }[meta.format] || 'bin';
   out.append(h('div', { class: 'btn-row' },
     h('button', { class: 'btn', type: 'button', onclick: () => download(`${exportBase}.json`, JSON.stringify(exportJson(meta, sourceLabel), null, 2)) }, '결과 JSON 다운로드'),
-    h('button', { class: 'btn', type: 'button', onclick: () => download(`${exportBase}.${ext}`, new Blob([bytes], { type: meta.mime })) }, '파일 저장'),
+    h('button', { class: 'btn', type: 'button', onclick: saveFile }, '원본 이미지 저장'),
     meta.summaries.length ? copyBtn(() => meta.summaries.map(summaryText).join('\n\n'), '요약 전체 복사') : null));
   container.append(out);
+  syncEmpty();
   return out;
+}
+
+/** 저장 파일 이름: caveduck 은 uuid, 그 밖은 원래 파일 이름(너무 흔한 이름이면 사이트 이름을 붙임) */
+function saveStemFor(parsed, cand) {
+  if (parsed.uuid) return parsed.uuid;
+  let stem = 'image';
+  try { stem = decodeURIComponent(new URL(cand.url).pathname.split('/').filter(Boolean).pop() || 'image'); } catch { /* 기본값 */ }
+  stem = stem.replace(/\.[a-z0-9]{2,5}$/i, '');
+  if (/^(img|image|images?|file|download|original|\d{1,3})$/i.test(stem)) stem = `${parsed.site || 'image'}_${stem}`;
+  return slug(stem);
 }
 
 function summaryText(s) {
@@ -256,10 +276,27 @@ async function readStealth(blob) {
 }
 
 // ───────────── 결과 영역 ─────────────
+const savedFiles = [];
+function genFiles() {
+  for (let i = savedFiles.length - 1; i >= 0; i--) if (!savedFiles[i].card.isConnected) savedFiles.splice(i, 1);
+  return savedFiles.filter((f) => f.hasGen);
+}
 function syncEmpty() {
   const has = !!$('#results .card');
   $('#empty').hidden = has;
   $('#clear-results').hidden = !has;
+  const n = genFiles().length;
+  $('#save-all').hidden = n === 0;
+  $('#save-all').textContent = `생성 정보 있는 원본 ${n}개 ZIP 저장`;
+}
+function saveAllZip() {
+  const files = genFiles();
+  if (!files.length) return;
+  if (files.length === 1) { download(files[0].name, new Blob([files[0].bytes])); return; }
+  const zip = makeZip(files.map((f) => ({ name: f.name, data: f.bytes })));
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  download(`meta_originals_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.zip`, new Blob([zip], { type: 'application/zip' }));
 }
 function addCard(card) { $('#results').prepend(card); syncEmpty(); }
 function removeCard(card) { card.remove(); syncEmpty(); }
@@ -346,7 +383,7 @@ function urlCard(parsed, descriptions = []) {
       const sec = h('section', {}, h('h3', {}, `${r.c.label} 분석 결과`));
       body.append(sec);
       renderMeta(sec, meta, {
-        bytes: got.buf, sourceLabel: r.c.url, derived: !!r.c.derived,
+        bytes: got.buf, sourceLabel: r.c.url, derived: !!r.c.derived, saveStem: saveStemFor(parsed, r.c),
         exportBase: `meta_${parsed.uuid || slug(parsed.title)}_${slug(r.c.kind || r.c.label)}`,
       });
       if (meta.format !== 'HTML' && !settings.tryAll) done = true;
@@ -359,7 +396,8 @@ function urlCard(parsed, descriptions = []) {
         h('b', {}, anyCors ? '브라우저 보안(CORS) 때문에 파일 내용을 읽지 못했습니다.' : '어느 후보에서도 파일을 받지 못했습니다.'));
       if (anyCors) {
         box.append(
-          h('p', {}, '① 후보 주소 링크를 새 탭에서 열고 “다른 이름으로 저장”한 뒤, 위의 파일 상자에 끌어다 놓으세요.'),
+          h('p', {}, '① 원본을 새 탭에서 열고 “다른 이름으로 저장”한 뒤, 파일 상자에 끌어다 놓으세요. ',
+            h('a', { class: 'btn sm', href: (firstLoadable || parsed.candidates[0].url), target: '_blank', rel: 'noopener noreferrer' }, '원본 새 탭에서 열기')),
           h('p', {}, '② 또는 “가져오기 설정”에 CORS 프록시(README 의 Cloudflare Worker) 주소를 넣고 다시 시도하세요.'));
       }
       body.append(box);
@@ -389,7 +427,7 @@ async function fileCard(file) {
   const base = (file.name || 'image').replace(/\.[^.]+$/, '');
   // 파일 이름에 이미지 uuid 가 있으면 종류를 알려 준다
   const p = parseCaveduckUrl(file.name || '');
-  renderMeta(card, meta, { bytes: buf, sourceLabel: `파일: ${file.name || '(붙여넣기)'}`, derived: ['charim-standard', 'charim-160x160', 'charim-1920x'].includes(p?.kind), exportBase: `${base}_meta` });
+  renderMeta(card, meta, { bytes: buf, sourceLabel: `파일: ${file.name || '(붙여넣기)'}`, derived: ['charim-standard', 'charim-160x160', 'charim-1920x'].includes(p?.kind), exportBase: `${base}_meta`, saveStem: base });
 }
 
 // ───────────── 카드: HTML 추출 ─────────────
@@ -479,6 +517,7 @@ function init() {
   initSettings();
   $('#runBtn').addEventListener('click', run);
   $('#clearBtn').addEventListener('click', () => { $('#input').value = ''; updateHint(); $('#input').focus(); });
+  $('#save-all').addEventListener('click', saveAllZip);
   $('#clear-results').addEventListener('click', () => { for (const c of document.querySelectorAll('#results .card')) c.remove(); syncEmpty(); });
   $('#settings-btn').addEventListener('click', () => {
     const d = $('#settings'); d.open = true;

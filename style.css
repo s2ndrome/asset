@@ -198,3 +198,15 @@ details.raw > .body { padding: 0 10px 10px; }
   .top-r { width: 100%; justify-content: space-between; }
 }
 .cands-box { margin-top: 10px; }
+
+.hero-r { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+#save-all { border-color: var(--blue); }
+.side { display: flex; flex-direction: column; gap: 6px; align-self: start; min-width: 0; }
+.side .save-btn { margin-top: 4px; width: 100%; }
+.side .muted { margin: 0; }
+.note .btn.sm { margin-left: 4px; vertical-align: 1px; }
+.side .preview { align-self: stretch; }
+@media (max-width: 640px) {
+  .hero { flex-wrap: wrap; gap: 8px; }
+  .hero-r { width: 100%; justify-content: flex-start; }
+}

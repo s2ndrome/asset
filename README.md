@@ -34,7 +34,9 @@ caveduck.io 주소는 전용 규칙으로 원본을 찾고, **티스토리·노�
    - 후보 주소별 상태: `✔ 200`(파일 읽기 성공) / `✖ HTTP 404` / `⚠ 읽기 차단(CORS)`, 그리고 `<img>`로 로드되는지(존재 여부) 별도 표시
    - 원본 미리보기, 형식·해상도·파일 크기
    - 생성기별 요약(프롬프트/네거티브/캐릭터 프롬프트/설정 표) + 원본 메타데이터 항목 전체(긴 JSON은 접고 펼치기)
-   - 모든 텍스트에 **복사** 버튼, **결과 JSON 다운로드**, 받은 **파일 저장**
+   - 미리보기 아래 **원본 이미지 저장**: 받은 파일을 바이트 그대로 저장하므로 생성 정보(메타데이터)가 함께 들어 있습니다
+   - 결과 위 **생성 정보 있는 원본 N개 ZIP 저장**: 생성 정보가 있는 원본만 골라 압축 없이(바이트 그대로) 한 파일로 묶어 저장
+   - 모든 텍스트에 **복사** 버튼, **결과 JSON 다운로드**
    - 정보가 없으면 “**이 파일에는 생성 정보가 없음** (업로드·변환 과정에서 제거됐을 가능성)”이라고 표시
 5. `index.html?url=<주소>` 로 열면 바로 분석합니다.
 
@@ -192,6 +194,7 @@ index.html, style.css      UI
 js/url.js                  URL 정리·후보 생성·HTML 추출
 js/parser.js               메타데이터 파서 (PNG/JPEG/WebP/GIF/EXIF/XMP/stealth)
 js/app.js                  화면 로직
+js/zip.js                  원본을 바이트 그대로 묶는 작은 ZIP 작성기
 worker/                    Cloudflare Worker 프록시
 cli/caveduck_meta.py       Python CLI
 tests/gen_fixtures.py      테스트용 PNG(tEXt/iTXt/zTXt)·JPEG(EXIF/XMP/COM)·WebP·GIF·stealth 샘플 생성 (Pillow)
