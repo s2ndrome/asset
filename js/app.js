@@ -57,6 +57,7 @@ const settings = {
   get proxyOnly() { return $('#proxyOnly').checked; },
   get tryAll() { return $('#tryAll').checked; },
   get stealth() { return $('#stealth').checked; },
+  get zipAll() { return $('#zipAll').checked; },
 };
 function initSettings() {
   $('#proxy').value = store.get('cdm.proxy');
@@ -64,7 +65,9 @@ function initSettings() {
   $('#tryAll').checked = store.get('cdm.tryAll') === '1';
   $('#stealth').checked = store.get('cdm.stealth', '1') === '1';
   $('#proxy').addEventListener('change', () => store.set('cdm.proxy', settings.proxy));
-  for (const id of ['proxyOnly', 'tryAll', 'stealth']) {
+  $('#zipAll').checked = store.get('cdm.zipAll') === '1';
+  $('#zipAll').addEventListener('change', syncEmpty);
+  for (const id of ['proxyOnly', 'tryAll', 'stealth', 'zipAll']) {
     $(`#${id}`).addEventListener('change', (e) => store.set(`cdm.${id}`, e.target.checked ? '1' : '0'));
   }
 }
@@ -279,7 +282,7 @@ async function readStealth(blob) {
 const savedFiles = [];
 function genFiles() {
   for (let i = savedFiles.length - 1; i >= 0; i--) if (!savedFiles[i].card.isConnected) savedFiles.splice(i, 1);
-  return savedFiles.filter((f) => f.hasGen);
+  return settings.zipAll ? savedFiles.slice() : savedFiles.filter((f) => f.hasGen);
 }
 function syncEmpty() {
   const has = !!$('#results .card');
@@ -287,13 +290,15 @@ function syncEmpty() {
   $('#clear-results').hidden = !has;
   const n = genFiles().length;
   $('#save-all').hidden = n === 0;
-  $('#save-all').textContent = `생성 정보 있는 원본 ${n}개 ZIP 저장`;
+  $('#save-all').textContent = settings.zipAll ? `원본 ${n}개 모두 ZIP 저장` : `생성 정보 있는 원본 ${n}개 ZIP 저장`;
 }
 function saveAllZip() {
   const files = genFiles();
   if (!files.length) return;
   if (files.length === 1) { download(files[0].name, new Blob([files[0].bytes])); return; }
-  const zip = makeZip(files.map((f) => ({ name: f.name, data: f.bytes })));
+  // 생성 정보 없는 파일이 섞이면 이름 앞에 표시를 붙여 구분한다
+  const mark = settings.zipAll && files.some((f) => !f.hasGen);
+  const zip = makeZip(files.map((f) => ({ name: mark && !f.hasGen ? `no-meta_${f.name}` : f.name, data: f.bytes })));
   const d = new Date();
   const pad = (n) => String(n).padStart(2, '0');
   download(`meta_originals_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}.zip`, new Blob([zip], { type: 'application/zip' }));

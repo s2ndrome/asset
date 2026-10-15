@@ -19,7 +19,7 @@
       <button type="button" data-theme-set="light">라이트</button>
       <button type="button" data-theme-set="dark">다크</button>
     </div>
-    <button class="btn ghost" type="button" id="settings-btn">프록시 설정</button>
+    <button class="btn ghost" type="button" id="settings-btn">설정</button>
   </div>
 </header>
 
@@ -58,7 +58,7 @@
     </details>
 
     <details class="box" id="settings">
-      <summary>가져오기 설정 <small>CORS 프록시</small></summary>
+      <summary>설정 <small>프록시 · ZIP 저장</small></summary>
       <label class="f">프록시 주소
         <input id="proxy" type="text" inputmode="url" placeholder="https://내-프록시.workers.dev" spellcheck="false" autocomplete="off">
       </label>
@@ -67,6 +67,7 @@
         <label><input id="proxyOnly" type="checkbox"> 직접 요청은 건너뛰고 프록시만 사용</label>
         <label><input id="tryAll" type="checkbox"> 첫 성공에서 멈추지 말고 모든 후보 검사</label>
         <label><input id="stealth" type="checkbox" checked> 픽셀에 숨긴 정보(stealth pnginfo)도 검사</label>
+        <label><input id="zipAll" type="checkbox"> ZIP에 생성 정보 없는 원본도 모두 넣기</label>
       </div>
     </details>
   </aside>
