@@ -211,7 +211,16 @@ function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase, 
     h('p', { class: 'muted' }, meta.hasGenerationInfo
       ? '받은 파일을 그대로 저장해서 생성 정보가 함께 들어 있어요.'
       : '받은 파일을 손대지 않고 그대로 저장해요.'));
-  if (meta.format !== 'HTML') savedFiles.push({ card: container.closest('.card') || container, name: fileName, bytes, hasGen: meta.hasGenerationInfo });
+  if (meta.format !== 'HTML') {
+    const card = container.closest('.card') || container;
+    savedFiles.push({
+      card, target: container, name: fileName, bytes, hasGen: meta.hasGenerationInfo, blobUrl,
+      title: card.querySelector('h2')?.textContent || fileName,
+      prompt: meta.summaries[0]?.prompt || '',
+      source: meta.summaries[0]?.type || '',
+      size: meta.width ? `${meta.width}×${meta.height}` : '',
+    });
+  }
   const main = h('div', {}, facts);
 
   if (!meta.hasGenerationInfo) {
@@ -300,8 +309,8 @@ async function readStealth(blob) {
 // ───────────── 결과 영역 ─────────────
 const savedFiles = [];
 function genFiles() {
-  for (let i = savedFiles.length - 1; i >= 0; i--) if (!savedFiles[i].card.isConnected) savedFiles.splice(i, 1);
-  return settings.zipAll ? savedFiles.slice() : savedFiles.filter((f) => f.hasGen);
+  const all = aliveFiles();
+  return settings.zipAll ? all.slice() : all.filter((f) => f.hasGen);
 }
 function syncEmpty() {
   const has = !!$('#results .card');
@@ -309,8 +318,46 @@ function syncEmpty() {
   $('#clear-results').hidden = !has;
   const n = genFiles().length;
   $('#save-all').hidden = n === 0;
+  const gn = aliveFiles().filter((f) => f.hasGen).length;
+  $('#gallery-btn').hidden = gn === 0;
+  if (gn === 0 && !$('#gallery').hidden) { $('#gallery').hidden = true; $('#gallery-btn').classList.remove('on'); $('#gallery-btn').setAttribute('aria-expanded', 'false'); }
+  $('#gallery-btn').textContent = $('#gallery').hidden ? `갤러리 보기 (${gn})` : `갤러리 접기 (${gn})`;
+  renderGallery();
   $('#save-all').textContent = settings.zipAll ? `원본 ${n}개 모두 ZIP 저장` : `생성 정보 있는 원본 ${n}개 ZIP 저장`;
 }
+// ───────────── 갤러리 (생성 정보가 있는 이미지만) ─────────────
+function aliveFiles() {
+  for (let i = savedFiles.length - 1; i >= 0; i--) if (!savedFiles[i].card.isConnected) savedFiles.splice(i, 1);
+  return savedFiles;
+}
+function setGallery(open) {
+  $('#gallery').hidden = !open;
+  $('#gallery-btn').setAttribute('aria-expanded', String(open));
+  $('#gallery-btn').classList.toggle('on', open);
+  syncEmpty();
+}
+function renderGallery() {
+  const g = $('#gallery');
+  if (g.hidden) return;
+  const files = aliveFiles().filter((f) => f.hasGen);
+  g.replaceChildren(...files.map((f) => h('figure', { class: 'g-tile' },
+    h('button', { class: 'g-img', type: 'button', title: '결과로 이동', onclick: () => jumpTo(f) },
+      h('img', { src: f.blobUrl, alt: f.prompt.slice(0, 120) || f.title, loading: 'lazy' })),
+    h('figcaption', {},
+      h('b', {}, f.title),
+      h('span', { class: 'g-meta' }, [f.source, f.size].filter(Boolean).join(' · ')),
+      f.prompt ? h('span', { class: 'g-prompt' }, f.prompt) : null,
+      h('span', { class: 'g-act' },
+        copyBtn(f.prompt || f.title, '프롬프트 복사'),
+        h('button', { class: 'btn sm', type: 'button', onclick: () => download(f.name, new Blob([f.bytes])) }, '저장'))))));
+}
+function jumpTo(f) {
+  f.target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  f.card.classList.remove('flash');
+  void f.card.offsetWidth;
+  f.card.classList.add('flash');
+}
+
 function saveAllZip() {
   const files = genFiles();
   if (!files.length) return;
@@ -542,6 +589,7 @@ function init() {
   $('#runBtn').addEventListener('click', run);
   $('#clearBtn').addEventListener('click', () => { $('#input').value = ''; updateHint(); $('#input').focus(); });
   $('#save-all').addEventListener('click', saveAllZip);
+  $('#gallery-btn').addEventListener('click', () => setGallery($('#gallery').hidden));
   $('#copy-snippet').addEventListener('click', () => { copyText(GALLERY_SNIPPET); $('#snippet-help').hidden = false; });
   $('#snippet-help-close').addEventListener('click', () => { $('#snippet-help').hidden = true; });
   $('#clear-results').addEventListener('click', () => { for (const c of document.querySelectorAll('#results .card')) c.remove(); syncEmpty(); });
