@@ -211,3 +211,7 @@ details.raw > .body { padding: 0 10px 10px; }
   .hero-r { width: 100%; justify-content: flex-start; }
 }
 .snippet-btn { margin-left: auto; }
+.snippet-help { margin-top: 12px; }
+.snippet-help-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.snippet-help ol { margin: 6px 0 0; padding-left: 18px; color: var(--ink); }
+.snippet-help li + li { margin-top: 4px; }

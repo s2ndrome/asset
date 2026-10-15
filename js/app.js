@@ -542,7 +542,8 @@ function init() {
   $('#runBtn').addEventListener('click', run);
   $('#clearBtn').addEventListener('click', () => { $('#input').value = ''; updateHint(); $('#input').focus(); });
   $('#save-all').addEventListener('click', saveAllZip);
-  $('#copy-snippet').addEventListener('click', () => copyText(GALLERY_SNIPPET));
+  $('#copy-snippet').addEventListener('click', () => { copyText(GALLERY_SNIPPET); $('#snippet-help').hidden = false; });
+  $('#snippet-help-close').addEventListener('click', () => { $('#snippet-help').hidden = true; });
   $('#clear-results').addEventListener('click', () => { for (const c of document.querySelectorAll('#results .card')) c.remove(); syncEmpty(); });
   $('#settings-btn').addEventListener('click', () => {
     const d = $('#settings'); d.open = true;
