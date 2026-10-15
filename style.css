@@ -210,3 +210,4 @@ details.raw > .body { padding: 0 10px 10px; }
   .hero { flex-wrap: wrap; gap: 8px; }
   .hero-r { width: 100%; justify-content: flex-start; }
 }
+.snippet-btn { margin-left: auto; }

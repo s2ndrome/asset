@@ -51,6 +51,25 @@ function download(name, data, type = 'application/json') {
 const slug = (t) => String(t || 'image').replace(/[^\p{L}\p{N}._-]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60) || 'image';
 const fmtSize = (n) => (n == null ? '' : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`);
 
+// 갤러리 화면의 개발자 도구 콘솔에서 실행하면, 갤러리 이미지 원본 주소를 모두 모아 클립보드에 복사하는 코드
+const GALLERY_SNIPPET = String.raw`(async()=>{
+  const box=document.querySelector('div[class*="min-h-[40dvh]"][class*="overflow-y-auto"]');
+  if(!box){console.log('영역을 못 찾았어요. 갤러리를 연 상태에서 실행하세요');return;}
+  box.style.outline='3px solid lime';
+  const s=new Set();
+  const grab=()=>box.querySelectorAll('img').forEach(i=>{
+    let u=/^https?:/.test(i.alt||'')?i.alt:(i.currentSrc||i.src);
+    if(!u||/charim-blur/.test(u))return;
+    s.add(u.replace(/\/cdn-cgi\/image\/[^/]+\//,'/'));
+  });
+  for(let y=0;y<=box.scrollHeight;y+=box.clientHeight*0.9){box.scrollTop=y;await new Promise(r=>setTimeout(r,100));grab();}
+  grab();box.style.outline='';
+  const t=[...s].join('\n');
+  const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();
+  const ok=document.execCommand('copy');ta.remove();
+  console.log((ok?'클립보드에 복사됨 - ':'복사 실패, 아래를 직접 복사 - ')+s.size+'개\n'+t);
+})();`;
+
 // ───────────── 설정 ─────────────
 const settings = {
   get proxy() { return $('#proxy').value.trim(); },
@@ -523,6 +542,7 @@ function init() {
   $('#runBtn').addEventListener('click', run);
   $('#clearBtn').addEventListener('click', () => { $('#input').value = ''; updateHint(); $('#input').focus(); });
   $('#save-all').addEventListener('click', saveAllZip);
+  $('#copy-snippet').addEventListener('click', () => copyText(GALLERY_SNIPPET));
   $('#clear-results').addEventListener('click', () => { for (const c of document.querySelectorAll('#results .card')) c.remove(); syncEmpty(); });
   $('#settings-btn').addEventListener('click', () => {
     const d = $('#settings'); d.open = true;
