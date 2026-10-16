@@ -150,6 +150,12 @@ def parse_generic_url(raw: str):
             add(inp, "입력 주소", True)
         else:
             add(inp, "입력 주소")
+    elif host == "firebasestorage.googleapis.com" or host.endswith(".firebasestorage.app"):
+        site = "Firebase"
+        if "alt" not in qs:
+            q = urllib.parse.urlencode([(k, v) for k, vs in qs.items() for v in vs] + [("alt", "media")])
+            add(urllib.parse.urlunsplit((u.scheme, u.netloc, u.path, q, "")), "원본(alt=media)")
+        add(inp, "원본(업로드 파일)" if "alt" in qs else "입력 주소")
     elif re.search(r"(^|\.)notion\.so$|\.notion\.site$", host):
         site = "노션"
         m = re.match(r"^/image/(.+)$", u.path)
@@ -171,7 +177,7 @@ def parse_generic_url(raw: str):
             add(inp, "입력 주소(리사이즈)", True)
         else:
             add(inp, "입력 주소")
-    name = urllib.parse.unquote(cands[0]["url"].split("?")[0].rstrip("/").rsplit("/", 1)[-1]) or host
+    name = _decode(urllib.parse.urlsplit(cands[0]["url"]).path).rstrip("/").rsplit("/", 1)[-1] or host
     return {"input": inp, "uuid": None, "kind": site, "v": "", "site": site, "title": f"{site} · {name}", "candidates": cands}
 
 
@@ -901,6 +907,19 @@ def process_text(text, args, results):
 
 
 def handle(arg, args, results):
+    m = re.match(r"^\s*['\"]?data:(image/[\w.+-]+)?[^,]*?(;base64)?,([^'\"\s]*)", arg, re.I | re.S)
+    if m:
+        import base64
+        try:
+            data = base64.b64decode(m.group(3) + "===") if m.group(2) else urllib.parse.unquote_to_bytes(m.group(3))
+        except Exception as err:  # noqa: BLE001
+            print(col(f"\n✖ data: 값을 풀 수 없음: {err}", "r"))
+            return
+        print(col(f"\n━━ data: 값 ({m.group(1) or '형식 미상'}, {len(data):,} B)", "b"))
+        res = parse_image(data, stealth=not args.no_stealth)
+        print_meta(res, raw=args.raw)
+        results.append({"input": "data:", "result": export(res)})
+        return
     p = Path(arg)
     if not re.match(r"^https?://", arg) and p.exists() and p.is_file():
         return process_file(p, args, results)

@@ -114,9 +114,36 @@ export function parseLines(text) {
     .map((l) => l.trim())
     .filter(Boolean)
     .map((line) => {
+      const d = parseDataUrl(line);
+      if (d) return d;
       const r = parseImageUrl(line);
       return r ? r : { input: line, error: '이미지 주소(https://…)로 인식할 수 없음' };
     });
+}
+
+/**
+ * data:image/...;base64,... 값(페이지에 박혀 있는 이미지 자체)을 바이트로 푼다.
+ * @returns {null | {input, dataUrl: true, mime, bytes: Uint8Array, normalized}}
+ */
+export function parseDataUrl(raw) {
+  const t = String(raw ?? '').trim().replace(/^[\s'"`(<]+|[\s'"`)>]+$/g, '');
+  const m = t.match(/^data:(image\/[a-z0-9.+-]+)?((?:;[a-z0-9-]+=[^;,]*)*)(;base64)?,(.*)$/is);
+  if (!m) return null;
+  const mime = (m[1] || 'application/octet-stream').toLowerCase();
+  let bytes;
+  try {
+    if (m[3]) {
+      const bin = atob(m[4].replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/'));
+      bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    } else {
+      bytes = new TextEncoder().encode(decodeURIComponent(m[4]));
+    }
+  } catch { return null; }
+  if (!bytes.length) return null;
+  // 같은 값 중복 제거용 키: 길이 + 앞뒤 일부
+  const normalized = `data:${mime}:${bytes.length}:${m[4].slice(0, 40)}:${m[4].slice(-40)}`;
+  return { input: `data:${mime} (${bytes.length.toLocaleString()} B)`, dataUrl: true, mime, bytes, normalized };
 }
 
 /** 붙여넣은 내용이 HTML/JSON 페이지 소스처럼 보이는지 */
@@ -215,8 +242,8 @@ function safeDecode(s) {
 
 function fileNameOf(url) {
   try {
-    const p = new URL(url).pathname.split('/').filter(Boolean);
-    return p.length ? safeDecode(p[p.length - 1]) : new URL(url).hostname;
+    const p = safeDecode(new URL(url).pathname).split('/').filter(Boolean);
+    return p.length ? p[p.length - 1] : new URL(url).hostname;
   } catch { return url; }
 }
 
@@ -263,6 +290,15 @@ export function parseGenericUrl(raw) {
     } else {
       add(input, '입력 주소');
     }
+  } else if (host === 'firebasestorage.googleapis.com' || /\.firebasestorage\.app$/.test(host)) {
+    // Firebase Storage: 토큰 붙은 다운로드 주소가 곧 업로드된 원본 파일. alt=media 가 없으면 메타 JSON 이 오므로 붙인다.
+    site = 'Firebase';
+    if (!u.searchParams.has('alt')) {
+      const media = new URL(input);
+      media.searchParams.set('alt', 'media');
+      add(media.toString(), '원본(alt=media)');
+    }
+    add(input, u.searchParams.has('alt') ? '원본(업로드 파일)' : '입력 주소');
   } else if (/amazonaws\.com$/.test(host) && /notion/.test(input) || /notionusercontent\.com$/.test(host)) {
     site = '노션';
     add(input, '입력 주소');

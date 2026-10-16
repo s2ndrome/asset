@@ -16,6 +16,8 @@ const ALLOWED_HOSTS = [
   // 노션
   'www.notion.so', 'notion.so', 'file.notion.so', '.notion.site', 'img.notionusercontent.com',
   'prod-files-secure.s3.us-west-2.amazonaws.com',
+  // Firebase Storage (토큰 붙은 다운로드 주소)
+  'firebasestorage.googleapis.com', '.firebasestorage.app',
 ];
 
 function hostAllowed(host, extra = '') {

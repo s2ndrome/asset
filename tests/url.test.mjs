@@ -124,3 +124,25 @@ test('HTML 일반 이미지 추출 (img/data-src/srcset/og:image)', () => {
   assert.ok(!urls.some((u) => u.endsWith('.svg') || u.startsWith('data:')));
   assert.equal(r.find((x) => x.urls[0] === 'https://ex.com/a.png').descriptions[0].value, '첫 그림');
 });
+
+import { parseDataUrl, parseLines as parseLines2 } from '../js/url.js';
+
+test('Firebase Storage: 토큰 주소 그대로, alt 없으면 alt=media 추가', () => {
+  const U = 'https://firebasestorage.googleapis.com/v0/b/lovelog-cc579.firebasestorage.app/o/tsites%2Fjihanull%2F1791690005276_621_20261011101052.jpg?alt=media&token=ab4731d3';
+  const r = parseImageUrl(U);
+  assert.equal(r.site, 'Firebase');
+  assert.deepEqual(r.candidates.map((c) => c.url), [U]);
+  assert.equal(r.title, 'Firebase · 1791690005276_621_20261011101052.jpg');
+  const r2 = parseImageUrl('https://firebasestorage.googleapis.com/v0/b/x/o/a%2Fb.png?token=t');
+  assert.ok(r2.candidates[0].url.includes('alt=media') && r2.candidates[0].url.includes('token=t'));
+});
+
+test('data:image 값 → 바이트', () => {
+  const d = parseDataUrl(`"data:image/png;base64,${Buffer.from([0x89, 0x50, 0x4e, 0x47, 13, 10]).toString('base64')}"`);
+  assert.equal(d.mime, 'image/png');
+  assert.deepEqual([...d.bytes.slice(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+  assert.equal(parseDataUrl('data:image/png;base64,!!!'), null);
+  assert.equal(parseDataUrl('https://x/a.png'), null);
+  const items = parseLines2('data:image/webp;base64,UklGRg==\nhttps://ex.com/a.png');
+  assert.ok(items[0].dataUrl && items[1].candidates);
+});

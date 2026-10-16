@@ -253,7 +253,7 @@ function renderMeta(container, meta, { bytes, sourceLabel, derived, exportBase, 
 function saveStemFor(parsed, cand) {
   if (parsed.uuid) return parsed.uuid;
   let stem = 'image';
-  try { stem = decodeURIComponent(new URL(cand.url).pathname.split('/').filter(Boolean).pop() || 'image'); } catch { /* 기본값 */ }
+  try { stem = decodeURIComponent(new URL(cand.url).pathname).split('/').filter(Boolean).pop() || 'image'; } catch { /* 기본값 */ }
   stem = stem.replace(/\.[a-z0-9]{2,5}$/i, '');
   if (/^(img|image|images?|file|download|original|\d{1,3})$/i.test(stem)) stem = `${parsed.site || 'image'}_${stem}`;
   return slug(stem);
@@ -487,10 +487,10 @@ function urlCard(parsed, descriptions = []) {
 
 // ───────────── 카드: 파일 ─────────────
 
-async function fileCard(file) {
+async function fileCard(file, origin = '') {
   const card = h('article', { class: 'card' });
   card.append(h('div', { class: 'card-head' },
-    h('div', {}, h('h2', {}, file.name || '붙여넣은 이미지'), h('div', { class: 'src' }, `${file.type || '형식 미상'} · ${fmtSize(file.size)}`)),
+    h('div', {}, h('h2', {}, file.name || '붙여넣은 이미지'), h('div', { class: 'src' }, `${origin ? origin + ' · ' : ''}${file.type || '형식 미상'} · ${fmtSize(file.size)}`)),
     h('button', { class: 'x-btn', type: 'button', onclick: () => removeCard(card), 'aria-label': '닫기' }, '✕')));
   addCard(card);
   const buf = await file.arrayBuffer();
@@ -498,7 +498,7 @@ async function fileCard(file) {
   const base = (file.name || 'image').replace(/\.[^.]+$/, '');
   // 파일 이름에 이미지 uuid 가 있으면 종류를 알려 준다
   const p = parseCaveduckUrl(file.name || '');
-  renderMeta(card, meta, { bytes: buf, sourceLabel: `파일: ${file.name || '(붙여넣기)'}`, derived: ['charim-standard', 'charim-160x160', 'charim-1920x'].includes(p?.kind), exportBase: `${base}_meta`, saveStem: base });
+  renderMeta(card, meta, { bytes: buf, sourceLabel: origin || `파일: ${file.name || '(붙여넣기)'}`, derived: ['charim-standard', 'charim-160x160', 'charim-1920x'].includes(p?.kind), exportBase: `${base}_meta`, saveStem: base });
 }
 
 // ───────────── 카드: HTML 추출 ─────────────
@@ -546,10 +546,20 @@ function run() {
     return;
   }
   const items = parseLines(text);
+  // data:image/... 값은 이미지 바이트가 들어 있으므로 파일처럼 바로 분석
+  const datas = items.filter((x) => x.dataUrl);
+  const seenData = new Set();
+  for (const d of [...datas].reverse()) {
+    if (seenData.has(d.normalized)) continue;
+    seenData.add(d.normalized);
+    const ext = (d.mime.split('/')[1] || 'bin').replace('jpeg', 'jpg').replace(/[^a-z0-9]/g, '');
+    fileCard(new File([d.bytes], `data_image_${seenData.size}.${ext}`, { type: d.mime }), '붙여 넣은 data: 값')
+      .catch((err) => toast(`data: 값 읽기 실패: ${err.message}`));
+  }
   const bad = items.filter((x) => x.error);
   // 같은 UUID 는 한 번만
   const seen = new Set();
-  const good = items.filter((x) => { if (x.error) return false; const k = x.uuid || x.normalized; return seen.has(k) ? false : (seen.add(k), true); });
+  const good = items.filter((x) => { if (x.error || x.dataUrl) return false; const k = x.uuid || x.normalized; return seen.has(k) ? false : (seen.add(k), true); });
   [...good].reverse().forEach((p) => urlCard(p));
   if (bad.length) toast(`${bad.length}줄은 이미지 주소(https://…)가 아니라서 건너뛰었어요`);
 }
@@ -561,8 +571,10 @@ function updateHint() {
   if (looksLikeHtml(t)) $('#modeHint').textContent = `HTML 소스 모드 · 이미지 ${findImagesInHtml(t).length}개 감지`;
   else {
     const items = parseLines(t);
-    const ok = items.filter((x) => !x.error).length;
-    $('#modeHint').textContent = `주소 ${ok}개 인식${items.length - ok ? ` · ${items.length - ok}줄 인식 불가` : ''}`;
+    const nd = items.filter((x) => x.dataUrl).length;
+    const ok = items.filter((x) => !x.error && !x.dataUrl).length;
+    const bad = items.length - ok - nd;
+    $('#modeHint').textContent = [ok ? `주소 ${ok}개 인식` : '', nd ? `이미지 데이터(data:) ${nd}개` : '', bad ? `${bad}줄 인식 불가` : ''].filter(Boolean).join(' · ') || '인식된 주소 없음';
   }
 }
 

@@ -54,12 +54,14 @@ caveduck.io 주소는 전용 규칙으로 원본을 찾고, **티스토리·노�
 | 티스토리 | `https://img1.daumcdn.net/thumb/R1280x0/?scode=mtistory2&fname=https%3A%2F%2Fblog.kakaocdn.net%2Fdn%2F…%2Fimg.png` | `fname` 안의 `https://blog.kakaocdn.net/dn/…/img.png` |
 | 티스토리(옛 cfile) | `https://t1.daumcdn.net/cfile/tistory/<id>` | `…/cfile/tistory/<id>?original` |
 | 노션 | `https://www.notion.so/image/<인코딩된 원본>?table=block&id=…&width=…` | 안에 든 S3 원본 → `width` 를 뗀 노션 주소 → 입력 주소 |
+| Firebase Storage | `https://firebasestorage.googleapis.com/v0/b/…/o/…?alt=media&token=…` | 입력 주소 그대로(업로드된 파일 자체). `alt=media` 가 없으면 붙여서 시도 |
+| `data:image/…;base64,…` | 페이지에 박혀 있는 이미지 값 | 주소가 아니라 이미지 바이트 자체라 그대로 풀어서 분석(서버 요청 없음) |
 | 그 밖 | 아무 `https://` 이미지 주소 | Cloudflare `/cdn-cgi/image/<옵션>/` 이 있으면 뗀 주소, 없으면 입력 주소 그대로 |
 
 - 페이지 HTML 소스를 붙여넣으면 `<img src>`·`data-src`·`srcset`(가장 큰 것)·`og:image` 이미지도 모두 뽑습니다(`alt` 를 설명으로 표시).
 - 메타데이터가 남아 있는지는 사이트가 **원본 파일을 그대로 주는지**에 달려 있습니다. 썸네일·리사이즈본은 대개 지워져 있습니다.
 - 노션 S3 원본은 서명(만료 시간)이 필요한 경우가 많아 실패할 수 있습니다. 그럴 땐 노션 주소나, 이미지를 저장해 파일로 넣으세요.
-- 브라우저에서 직접 읽기가 막히면(CORS) 프록시가 필요합니다. 기본 Worker 는 caveduck·티스토리(카카오)·노션 이미지 호스트만 허용합니다(`EXTRA_HOSTS` 로 추가).
+- 브라우저에서 직접 읽기가 막히면(CORS) 프록시가 필요합니다. 기본 Worker 는 caveduck·티스토리(카카오)·노션·Firebase Storage 이미지 호스트만 허용합니다(`EXTRA_HOSTS` 로 추가).
 
 ## URL 변환 규칙 (caveduck)
 
@@ -124,7 +126,7 @@ CORS로 막혀도 `<img>` 태그 로드는 가능하므로, 도구는 각 후보
 
 ## 프록시 설정 (Cloudflare Workers)
 
-`worker/worker.js` 는 **허용 목록의 이미지 호스트만** 받는 작은 CORS 프록시입니다(caveduck, 티스토리 `*.daumcdn.net`·`*.kakaocdn.net`·`*.tistory.com`, 노션 `notion.so`·`*.notion.site`·노션 S3 버킷). 다른 호스트는 `EXTRA_HOSTS` 환경 변수로 추가합니다.
+`worker/worker.js` 는 **허용 목록의 이미지 호스트만** 받는 작은 CORS 프록시입니다(caveduck, 티스토리 `*.daumcdn.net`·`*.kakaocdn.net`·`*.tistory.com`, 노션 `notion.so`·`*.notion.site`·노션 S3 버킷, Firebase `firebasestorage.googleapis.com`). 다른 호스트는 `EXTRA_HOSTS` 환경 변수로 추가합니다.
 
 - 호스트 화이트리스트(위 목록만, 사용자 정보·다른 포트·목록 밖으로의 리다이렉트 거부)
 - 파일 크기 제한(`MAX_BYTES`, 기본 25 MiB — `Content-Length` 와 실제 스트림 양쪽에서 검사)

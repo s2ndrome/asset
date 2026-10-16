@@ -53,6 +53,18 @@ class GenericUrlTest(unittest.TestCase):
         self.assertNotIn("width=", r["candidates"][1]["url"])
         self.assertEqual(cm.parse_image_url("https://pbs.twimg.com/m/x.png")["candidates"][0]["url"], "https://pbs.twimg.com/m/x.png")
         self.assertIsNone(cm.parse_image_url("hello"))
+        r = cm.parse_image_url("https://firebasestorage.googleapis.com/v0/b/x/o/a%2Fb.jpg?alt=media&token=t")
+        self.assertEqual((r["site"], r["candidates"][0]["url"]), ("Firebase", "https://firebasestorage.googleapis.com/v0/b/x/o/a%2Fb.jpg?alt=media&token=t"))
+        self.assertIn("alt=media", cm.parse_image_url("https://firebasestorage.googleapis.com/v0/b/x/o/a.jpg?token=t")["candidates"][0]["url"])
+
+    def test_data_url(self):
+        import base64, contextlib, io
+        b64 = base64.b64encode((FX / "novelai.png").read_bytes()).decode()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = cm.main([f"data:image/png;base64,{b64}", "--json", "-"])
+        self.assertEqual(code, 0)
+        self.assertIn("NovelAI", out.getvalue())
         self.assertEqual(cm.parse_image_url(EX)["candidates"][0]["url"], f"https://cdn.caveduck.io/charim/{UUID}")
 
 

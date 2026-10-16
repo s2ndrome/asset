@@ -11,13 +11,15 @@ const UUID = 'a1723c53-fe6f-4a8f-b058-13b84e0781ad';
 
 test('티스토리·노션 호스트 허용, EXTRA_HOSTS', () => {
   for (const ok of ['https://blog.kakaocdn.net/dn/a/b/img.png', 'https://img1.daumcdn.net/thumb/R1280x0/?fname=x',
-    'https://www.notion.so/image/x', 'https://myspace.notion.site/image/x', 'https://prod-files-secure.s3.us-west-2.amazonaws.com/a/b.png']) {
+    'https://www.notion.so/image/x', 'https://myspace.notion.site/image/x', 'https://prod-files-secure.s3.us-west-2.amazonaws.com/a/b.png',
+    'https://firebasestorage.googleapis.com/v0/b/x.firebasestorage.app/o/a.jpg?alt=media&token=t']) {
     assert.ok(checkTarget(ok).url, ok);
   }
   assert.ok(checkTarget('https://kakaocdn.net.evil.com/x').error);
   assert.ok(checkTarget('https://evil-amazonaws.com/x').error);
   assert.ok(checkTarget('https://s3.us-west-2.amazonaws.com/any-bucket/x').error);
   assert.ok(checkTarget('https://pbs.twimg.com/x').error);
+  assert.ok(checkTarget('https://storage.googleapis.com/any/x').error);
   assert.ok(checkTarget('https://pbs.twimg.com/x', '.twimg.com').url);
 });
 
