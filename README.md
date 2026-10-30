@@ -181,3 +181,25 @@ tests/test_cli.py          Python 파서 + 가짜 프록시 서버로 후보 순
 ```sh
 sh tests/run.sh    # 샘플 생성 → Node 테스트 → Python 테스트
 ```
+
+---
+
+# 폭주 도넛단 (`donut/`)
+
+"러브인포 바이크×베이커리 시안" 중 **6번 폭주 도넛단** 시안을 실제 사이트로 만든 것입니다. 빌드 없이 정적 파일만으로 동작하고,
+GitHub Pages에서는 `/<저장소>/donut/` 주소로 함께 배포됩니다.
+
+| 구역 | 내용 |
+|---|---|
+| 히어로 | 시안(1280×800) 그대로. 넓은 화면에서는 폭에 맞춰 확대·축소하고, 760px 미만에서는 세로로 쌓음 |
+| `#seol` 총장 | 관리인 소개 |
+| `#members` 단원 | 신드롬 · 리아 카드 |
+| `#archive` 무용담 | `donut/data.js` 목록, 분류 필터. 와펜의 "무용담 N" 숫자는 목록 개수로 자동 표시 |
+| `#extra` 방명록 낙서 | 낙서 벽. 보고 있는 브라우저(`localStorage`)에만 저장됨 |
+
+고치는 곳
+- 소개·단원 문구: `donut/index.html`
+- 무용담 추가: `donut/data.js` 배열에 `{ date, tag, title, body, loss }` 추가 (`tag`는 질주/단속/일상/사고)
+- 색·글꼴: `donut/style.css` 맨 위 `:root` 변수
+
+로컬에서 보기: `donut/index.html` 을 브라우저로 바로 열면 됩니다.
