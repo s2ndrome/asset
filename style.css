@@ -231,3 +231,16 @@ details.raw > .body { padding: 0 10px 10px; }
 .card.flash { animation: flash 1.2s ease; }
 @keyframes flash { 0%, 40% { outline: 2px solid var(--blue-d); outline-offset: 2px; } 100% { outline: 2px solid transparent; outline-offset: 2px; } }
 @media (max-width: 640px) { .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 8px; gap: 8px; } }
+
+/* 로그인 문 */
+body.locked .work, body.locked .top-r { display: none !important; }
+.gate { min-height: calc(100vh - 60px); display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+.gate-card { width: 100%; max-width: 360px; padding: 22px 22px 20px; }
+.gate-title { margin: 0; font: 700 17px/1.3 var(--round); color: var(--blue-d); }
+.gate-sub { margin-top: 4px; }
+.gate-form .primary { width: 100%; margin-top: 12px; }
+.gate-form.busy { opacity: .6; pointer-events: none; }
+.gate-form input[type=password] { display: block; width: 100%; margin-top: 3px; padding: 6px 10px; border: 2px solid var(--line); border-radius: 0; background: var(--paper); color: var(--ink); font: 400 12px/1.5 var(--round); }
+.gate-form input:focus { outline: 0; border-color: var(--blue); }
+.gate-msg { min-height: 1.2em; margin: 8px 0 0; color: var(--err); font-size: 11.5px; }
+.who { color: var(--mid); font-size: 11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

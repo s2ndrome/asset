@@ -8,6 +8,9 @@ caveduck.io 주소는 전용 규칙으로 원본을 찾고, **티스토리·노�
 > 다시 인코딩된 파일이라 **메타데이터가 지워져 있을 가능성이 높습니다.** 이 도구는 그래서 업로드 원본으로 추정되는
 > `charim/<uuid>` 를 가장 먼저 시도합니다. 원본에도 정보가 없다면 업로드 단계에서 이미 제거된 것입니다.
 
+> 🔒 **로그인**: ZZON 사이트(s2ndrome/promm)와 같은 Supabase 계정으로 로그인해야 쓸 수 있습니다. 회원(초대 코드로 가입해 등급이 있는 계정)만 들어올 수 있고, 가입은 ZZON 사이트에서 합니다(`js/auth.js`).
+> 정적 사이트라 **화면 잠금**이며, 공개 저장소의 코드 자체를 숨기지는 않습니다.
+
 ## 목차
 - [사용법 (웹)](#사용법-웹)
 - [URL 변환 규칙](#url-변환-규칙)
@@ -200,6 +203,7 @@ js/url.js                  URL 정리·후보 생성·HTML 추출
 js/parser.js               메타데이터 파서 (PNG/JPEG/WebP/GIF/EXIF/XMP/stealth)
 js/app.js                  화면 로직
 js/zip.js                  원본을 바이트 그대로 묶는 작은 ZIP 작성기
+js/auth.js                 로그인 문 (ZZON 과 같은 Supabase 계정, 회원만 통과)
 worker/                    Cloudflare Worker 프록시
 cli/caveduck_meta.py       Python CLI
 tests/gen_fixtures.py      테스트용 PNG(tEXt/iTXt/zTXt)·JPEG(EXIF/XMP/COM)·WebP·GIF·stealth 샘플 생성 (Pillow)

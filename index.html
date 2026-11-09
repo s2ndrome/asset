@@ -8,6 +8,7 @@
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23c0d1dc'/%3E%3Cpath d='M7 23l6-8 4 5 3-3 5 6z' fill='%2334495a'/%3E%3Ccircle cx='21' cy='11' r='2.5' fill='%2334495a'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script type="module" src="js/app.js"></script>
 </head>
 <body>
@@ -20,8 +21,18 @@
       <button type="button" data-theme-set="dark">다크</button>
     </div>
     <button class="btn ghost" type="button" id="settings-btn">설정</button>
+    <span class="who" id="who"></span>
+    <button class="btn ghost" type="button" id="logout-btn">로그아웃</button>
   </div>
 </header>
+
+<div class="gate" id="gate" hidden>
+  <div class="gate-card box">
+    <p class="gate-title">ZZUN META thief ♡</p>
+    <p class="muted gate-sub">회원 전용이에요. 로그인해 주세요.</p>
+    <div class="gate-body"></div>
+  </div>
+</div>
 
 <main class="work">
   <section class="results-col">

@@ -1,6 +1,7 @@
 import { parseLines, looksLikeHtml, extractFromHtml, extractGenericImages, parseCaveduckUrl } from './url.js';
 import { parseImage, decodeStealth, mergeStealth } from './parser.js';
 import { makeZip } from './zip.js';
+import { startAuth } from './auth.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -631,9 +632,10 @@ function init() {
     if (files.length && !e.clipboardData.getData('text/plain')) { e.preventDefault(); handleFiles(files); }
   });
 
-  // ?url=… 로 바로 분석
+  // ?url=… 로 바로 분석 (로그인 뒤)
   const q = new URLSearchParams(location.search).get('url');
-  if (q) { $('#input').value = q; updateHint(); run(); }
+  if (q) document.addEventListener('auth:granted', () => { $('#input').value = q; updateHint(); run(); }, { once: true });
+  startAuth();
 }
 
 init();
